@@ -556,21 +556,24 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.status_label.set_label("Updating…")
         self.logline(f"=== Zarya update: {self.today_str()} ===")
         self.logline("")
-        self.logline("--- zypper refresh + dist-upgrade (enter your password when prompted) ---")
+        self.logline("--- zypper refresh + dist-upgrade + system flatpaks (enter your password when prompted) ---")
         self.run_step(
-            ["flatpak-spawn", "--host", "pkexec", "sh", "-c", "zypper ref && zypper dup -y"],
-            self.on_zypper_done,
+            [
+                "flatpak-spawn", "--host", "pkexec", "sh", "-c",
+                "zypper ref && zypper dup -y && flatpak update --system -y",
+            ],
+            self.on_privileged_done,
         )
 
-    def on_zypper_done(self, success, exit_status):
+    def on_privileged_done(self, success, exit_status):
         self.logline("")
         if not success:
-            self.logline(f"zypper step failed (exit status {exit_status}).")
+            self.logline(f"zypper/system-flatpak step failed (exit status {exit_status}).")
             self.finish(success=False)
             return
-        self.logline("--- flatpak update ---")
+        self.logline("--- flatpak update (user installs) ---")
         self.run_step(
-            ["flatpak-spawn", "--host", "flatpak", "update", "-y"],
+            ["flatpak-spawn", "--host", "flatpak", "update", "--user", "-y"],
             self.on_flatpak_done,
         )
 

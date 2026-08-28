@@ -50,3 +50,10 @@
   sun, perspective grid) to match.
 - Backups section now has a button to open Pereprava directly (via
   flatpak-spawn --host, same mechanism as the update/backup-status calls).
+- Fixed: `flatpak update -y` failed with "Deploy not allowed for user" —
+  it updates both user and system-wide flatpak installs, but the system
+  ones need privilege the same way zypper does, and there was no way to
+  satisfy that running as a normal user. System flatpak updates are now
+  folded into the same pkexec-privileged step as zypper
+  (`flatpak update --system -y`); the unprivileged step now only runs
+  `flatpak update --user -y`.
