@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zarya"
-version = "0.1.0-dev5"
+version = "0.1.0-dev6"
 description = "Zarya — runs your system and flatpak updates at login"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}

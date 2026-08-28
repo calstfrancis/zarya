@@ -25,8 +25,8 @@ class PreferencesWindow(Adw.PreferencesWindow):
         weather_group.add(self.location_row)
 
         self.units_row = Adw.ComboRow(title="Units")
-        self.units_row.set_model(Gtk.StringList.new(["Fahrenheit", "Celsius"]))
-        self.units_row.set_selected(0 if config.get("units", "fahrenheit") == "fahrenheit" else 1)
+        self.units_row.set_model(Gtk.StringList.new(["Celsius", "Fahrenheit"]))
+        self.units_row.set_selected(0 if config.get("units", "celsius") == "celsius" else 1)
         weather_group.add(self.units_row)
 
         weather_save_button = Gtk.Button(label="Save", halign=Gtk.Align.END)
@@ -89,6 +89,6 @@ class PreferencesWindow(Adw.PreferencesWindow):
 
     def on_weather_save(self, _button):
         self.config["location"] = self.location_row.get_text().strip()
-        self.config["units"] = "fahrenheit" if self.units_row.get_selected() == 0 else "celsius"
+        self.config["units"] = "celsius" if self.units_row.get_selected() == 0 else "fahrenheit"
         self.save_config(self.config)
         self.on_weather_changed()

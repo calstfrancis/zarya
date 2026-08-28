@@ -36,6 +36,17 @@
   the header: a check if everything's fine, an error mark if a fetch failed
   or (for Backups) any job's last run failed.
 - Filled in the real Google OAuth client ID/secret — "Connect Google
-  Calendar" in Preferences is now functional (repo is private, so committing
-  the Desktop-app client secret is fine; Google's own model doesn't treat it
-  as confidential anyway).
+  Calendar" in Preferences is now functional. Repo made public at Cal's
+  request; privacy policy and terms of service published at
+  calstfrancis.github.io/privacy.html and /terms.html for the OAuth consent
+  screen.
+- Added a first-run onboarding wizard: city (weather, Celsius by default)
+  and an optional Google Calendar connect step, skippable, shown once.
+- Default temperature unit changed from Fahrenheit to Celsius.
+- Weather section now uses Fondwave (dusk palette) styling — a deliberately
+  branded gradient card, not a general theme change; everything else still
+  routes through libadwaita's system colors.
+- Redesigned the app icon as a synthwave sunset in Fondwave colors (sliced
+  sun, perspective grid) to match.
+- Backups section now has a button to open Pereprava directly (via
+  flatpak-spawn --host, same mechanism as the update/backup-status calls).

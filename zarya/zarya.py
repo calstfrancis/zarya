@@ -11,7 +11,8 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import backup_status, google_calendar, keyring, weather
+from . import backup_status, google_calendar, keyring, styles, weather
+from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
 from .weather_table import WeatherTable
 
@@ -157,6 +158,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         # --- Weather ---
         weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        weather_content.add_css_class("fondwave-card")
         self.weather_summary_label = Gtk.Label(xalign=0, wrap=True)
         self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
         weather_content.append(self.weather_summary_label)
@@ -170,8 +172,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         # --- Backups ---
         self.backup_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        open_pereprava_button = Gtk.Button(icon_name="folder-remote-symbolic", has_frame=False)
+        open_pereprava_button.set_tooltip_text("Open Pereprava")
+        open_pereprava_button.connect("clicked", self.on_open_pereprava_clicked)
         backup_expander, self.backup_status_icon = self._make_section(
-            "backups", "Backups", self.backup_box, self.fetch_backups
+            "backups", "Backups", self.backup_box, self.fetch_backups,
+            extra_button=open_pereprava_button,
         )
         root_box.append(backup_expander)
 
@@ -239,7 +245,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         else:
             self._set_box_message(self.events_box, "Connect Google Calendar in Preferences to see today's events.")
 
-    def _make_section(self, key, title, content, on_refresh):
+    def _make_section(self, key, title, content, on_refresh, extra_button=None):
         status_icon = Gtk.Image()
         status_icon.set_pixel_size(16)
 
@@ -248,6 +254,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         title_label.add_css_class("heading")
         header_box.append(title_label)
         header_box.append(status_icon)
+        if extra_button is not None:
+            header_box.append(extra_button)
         refresh_button = Gtk.Button(icon_name="view-refresh-symbolic", has_frame=False)
         refresh_button.set_tooltip_text(f"Refresh {title.lower()}")
         refresh_button.connect("clicked", lambda *_: on_refresh())
@@ -341,7 +349,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if not self.weather_data:
             return
         d = self.weather_data
-        units = self.config.get("units", "fahrenheit")
+        units = self.config.get("units", "celsius")
         if units == "fahrenheit":
             temps = [weather.celsius_to_fahrenheit(t) for t in d["temp_c"]]
             hi = round(weather.celsius_to_fahrenheit(d["temp_max_c"]))
@@ -357,6 +365,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.weather_table.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
 
     # --- backups ---
+
+    def on_open_pereprava_clicked(self, _button):
+        try:
+            Gio.Subprocess.new(
+                ["flatpak-spawn", "--host", "pereprava"], Gio.SubprocessFlags.NONE
+            )
+        except GLib.Error as e:
+            self.toast_overlay.add_toast(Adw.Toast(title=f"Couldn't open Pereprava: {e}"))
 
     def fetch_backups(self):
         self._set_box_message(self.backup_box, "Checking backup status…")
@@ -628,9 +644,24 @@ class ZaryaApplication(Adw.Application):
     def do_activate(self):
         first_launch = self.window is None
         if first_launch:
+            styles.apply()
             self.window = ZaryaWindow(self)
         self.window.present()
-        if first_launch and not self.window.already_ran_today():
+        if first_launch:
+            if self.window.config.get("onboarded"):
+                if not self.window.already_ran_today():
+                    GLib.idle_add(self.window.start_updates)
+            else:
+                onboarding = OnboardingWindow(
+                    self.window, self.window.config, save_config,
+                    on_finished=self.on_onboarding_finished,
+                )
+                onboarding.present()
+
+    def on_onboarding_finished(self):
+        self.window.fetch_weather()
+        self.window.fetch_events()
+        if not self.window.already_ran_today():
             GLib.idle_add(self.window.start_updates)
 
 
