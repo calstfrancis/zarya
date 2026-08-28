@@ -12,8 +12,12 @@ class TodoSidebar(Gtk.Box):
         self.set_margin_start(8)
         self.set_margin_end(12)
 
-        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, vexpand=True)
-        card.add_css_class("fondwave-card")
+        card = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=8, vexpand=True,
+            margin_top=10, margin_bottom=10, margin_start=10, margin_end=10,
+        )
+        card.add_css_class("fondwave-terminal")
+        card.add_css_class("card")
 
         title = Gtk.Label(label="To-Do", xalign=0)
         title.add_css_class("title-4")

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.0] — dev
+## [0.3.0] "Amber Watch" — weather alerts, AQHI, a real Cancel fix
 
 - Added Environment Canada weather alerts to the Weather panel — active
   warnings/watches/statements near your location show as a colored banner
@@ -9,6 +9,22 @@
   `weather-alerts` collection), queried by a small bbox around your
   geocoded location. Canada-only by nature of the data source; silently
   shows nothing outside Canada rather than erroring.
+- Added the current Air Quality Health Index (AQHI) next to the weather
+  panel, from the same ECCC API (`aqhi-stations` + `aqhi-observations-realtime`
+  collections) — finds the nearest monitoring station to your location and
+  shows its latest reading with Canada's official Low/Moderate/High/Very
+  High categories.
+- To-do sidebar now uses the same Fondwave Konsole styling as the update
+  log (cream/plum), not the dark gradient card — reads better as a
+  persistent panel.
+- Fixed a real bug in the Cancel button: it sent SIGKILL
+  (`Gio.Subprocess.force_exit()`), which can never be caught — so it only
+  killed the local `flatpak-spawn` wrapper, leaving the actual host-side
+  `pkexec`/zypper/flatpak process orphaned and still running, which could
+  hold the zypper lock for a subsequent "Run Anyway". Cancel now sends
+  SIGTERM first (catchable, so flatpak-spawn and pkexec both forward it to
+  the real process), falling back to a force-kill only if it's still
+  running 5 seconds later.
 
 ## [0.2.0] "Amber Horizon" — weather polish, to-do sidebar, notifications
 

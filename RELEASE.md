@@ -1,5 +1,26 @@
 # Release Notes
 
+## [0.3.0] "Amber Watch" — weather alerts, AQHI, a real Cancel fix
+
+### Added
+
+- Environment Canada weather alerts on the Weather panel — active
+  warnings/watches/statements near your location as a colored banner
+  (amber/red by risk), full text on hover. ECCC's MSC GeoMet OGC API,
+  Canada-only, silently empty elsewhere.
+- Current Air Quality Health Index (AQHI) next to the weather panel, from
+  the nearest ECCC monitoring station.
+- To-do sidebar now uses the Fondwave Konsole styling (cream/plum), matching
+  the update log, instead of the dark gradient card.
+
+### Fixed
+
+- Cancel sent SIGKILL, which can't be caught — it only killed the local
+  `flatpak-spawn` wrapper, leaving the real host-side zypper/flatpak process
+  running and able to hold the zypper lock for a later run. Cancel now
+  sends SIGTERM first (forwarded to the real process by flatpak-spawn and
+  pkexec), force-killing only as a 5-second fallback.
+
 ## [0.2.0] "Amber Horizon" — weather polish, to-do sidebar, notifications
 
 ### Added

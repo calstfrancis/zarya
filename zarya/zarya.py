@@ -12,7 +12,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import __version__, backup_status, changelog, google_calendar, keyring, styles, weather, weather_alerts
+from . import __version__, backup_status, changelog, google_calendar, keyring, styles, weather, weather_alerts, weather_aqhi
 from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
 from .todo_sidebar import TodoSidebar
@@ -247,6 +247,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         weather_top_row.append(self.weather_current_label)
         weather_content.append(weather_top_row)
 
+        self.weather_aqhi_label = Gtk.Label(xalign=1)
+        self.weather_aqhi_label.add_css_class("caption")
+        weather_content.append(self.weather_aqhi_label)
+
         self.alerts_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         weather_content.append(self.alerts_box)
 
@@ -338,6 +342,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         main_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         self.toast_overlay.set_hexpand(True)
         main_hbox.append(self.toast_overlay)
+        main_hbox.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
         self.todo_sidebar = TodoSidebar(self.config, save_config)
         main_hbox.append(self.todo_sidebar)
 
@@ -445,12 +450,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if not location:
             self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
             self.weather_current_label.set_label("")
+            self.weather_aqhi_label.set_label("")
             self.weather_table.set_visible(False)
             self._clear_box(self.alerts_box)
             self._set_status_icon(self.weather_status_icon, "neutral")
             return
         self.weather_summary_label.set_label(f"Loading weather for {location}…")
         self.weather_current_label.set_label("")
+        self.weather_aqhi_label.set_label("")
 
         def worker():
             try:
@@ -467,6 +474,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 # nothing for locations outside Canada, and is a bonus on
                 # top of the core forecast either way, so never block on it.
                 today["alerts"] = []
+            try:
+                today["aqhi"] = weather_aqhi.fetch_current_aqhi(lat, lon)
+            except (OSError, ValueError, KeyError):
+                today["aqhi"] = None
             GLib.idle_add(self.on_weather_ready, today)
 
         threading.Thread(target=worker, daemon=True).start()
@@ -474,6 +485,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def on_weather_error(self, message):
         self.weather_summary_label.set_label(f"Couldn't get weather: {message}")
         self.weather_current_label.set_label("")
+        self.weather_aqhi_label.set_label("")
         self.weather_table.set_visible(False)
         self._clear_box(self.alerts_box)
         self._set_status_icon(self.weather_status_icon, "error")
@@ -515,6 +527,15 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.weather_current_label.set_label(current_text)
         else:
             self.weather_current_label.set_label("")
+
+        for css_class in ("accent", "warning", "error"):
+            self.weather_aqhi_label.remove_css_class(css_class)
+        aqhi = d.get("aqhi")
+        if aqhi:
+            self.weather_aqhi_label.set_label(f"Air quality: {aqhi['value']:.0f} ({aqhi['category']})")
+            self.weather_aqhi_label.add_css_class(aqhi["css_class"])
+        else:
+            self.weather_aqhi_label.set_label("")
 
         self.weather_table.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
         self.weather_table.center_on_now()
@@ -775,10 +796,31 @@ class ZaryaWindow(Adw.ApplicationWindow):
             return
         self.logline("")
         self.logline("--- cancelling… ---")
+        proc = self.proc
         try:
-            self.proc.force_exit()
+            # SIGTERM, not force_exit()/SIGKILL: the real zypper/flatpak
+            # command runs on the *host*, reached via flatpak-spawn --host.
+            # SIGKILL can never be caught, so it only kills the local
+            # flatpak-spawn wrapper — the host-side pkexec/zypper process
+            # would be orphaned and keep running, invisibly, and could hold
+            # the zypper lock for a subsequent "Run Anyway". SIGTERM is
+            # catchable, so flatpak-spawn forwards it to the host process
+            # (and pkexec forwards it again to its child) before this
+            # process exits.
+            proc.send_signal(15)
         except GLib.Error as e:
             self.logline(f"[cancel error: {e}]")
+            return
+        GLib.timeout_add(5000, self._force_kill_if_still_running, proc)
+
+    def _force_kill_if_still_running(self, proc):
+        if self.proc is proc:
+            self.logline("[still running 5s after cancelling — forcing it]")
+            try:
+                proc.force_exit()
+            except GLib.Error:
+                pass
+        return False
 
     def _set_running(self, running):
         self.run_button.set_sensitive(not running)

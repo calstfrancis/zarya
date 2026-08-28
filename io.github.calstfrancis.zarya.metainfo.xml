@@ -18,7 +18,7 @@
     <ul>
       <li>Runs zypper refresh + dist-upgrade and flatpak update with a single graphical password prompt</li>
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
-      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table</li>
+      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the Air Quality Health Index</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
       <li>Today's Google Calendar events and due dates</li>
       <li>A persistent to-do sidebar</li>
@@ -38,6 +38,18 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.3.0" date="2026-08-28">
+      <description>
+        <p>
+          "Amber Watch". Environment Canada weather alerts and the current
+          Air Quality Health Index on the weather panel, and a real fix for
+          the Cancel button — it sent an unforwardable signal that could
+          leave the real update process running on the host after
+          cancelling. To-do sidebar now matches the update log's Fondwave
+          styling.
+        </p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-08-28">
       <description>
         <p>
