@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0] — dev
+
+- Added Environment Canada weather alerts to the Weather panel — active
+  warnings/watches/statements near your location show as a colored banner
+  (amber for yellow/orange risk, red for red risk) with the full alert text
+  as a tooltip. Uses ECCC's MSC GeoMet OGC API (`api.weather.gc.ca`,
+  `weather-alerts` collection), queried by a small bbox around your
+  geocoded location. Canada-only by nature of the data source; silently
+  shows nothing outside Canada rather than erroring.
+
 ## [0.2.0] "Amber Horizon" — weather polish, to-do sidebar, notifications
 
 ### Added

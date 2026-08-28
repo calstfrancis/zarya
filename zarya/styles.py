@@ -39,6 +39,8 @@ FONDWAVE_CSS = f"""
 .fondwave-card label.dim-label {{ color: {CREAM_LABEL}; opacity: 0.8; }}
 .fondwave-card label.accent {{ color: {IVORY_DAWN}; font-weight: 800; }}
 .fondwave-card button {{ color: {IVORY_DAWN}; }}
+.fondwave-card label.warning {{ color: #FFD166; font-weight: 700; }}
+.fondwave-card label.error {{ color: #FF6B6B; font-weight: 700; }}
 .fondwave-card scrollbar {{ opacity: 0.6; }}
 
 .weather-figures label {{ font-feature-settings: "tnum"; }}

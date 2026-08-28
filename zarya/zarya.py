@@ -12,7 +12,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import __version__, backup_status, changelog, google_calendar, keyring, styles, weather
+from . import __version__, backup_status, changelog, google_calendar, keyring, styles, weather, weather_alerts
 from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
 from .todo_sidebar import TodoSidebar
@@ -247,6 +247,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
         weather_top_row.append(self.weather_current_label)
         weather_content.append(weather_top_row)
 
+        self.alerts_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        weather_content.append(self.alerts_box)
+
         self.weather_table = WeatherTable()
         self.weather_table.set_visible(False)
         weather_content.append(self.weather_table)
@@ -443,6 +446,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
             self.weather_current_label.set_label("")
             self.weather_table.set_visible(False)
+            self._clear_box(self.alerts_box)
             self._set_status_icon(self.weather_status_icon, "neutral")
             return
         self.weather_summary_label.set_label(f"Loading weather for {location}…")
@@ -456,6 +460,13 @@ class ZaryaWindow(Adw.ApplicationWindow):
             except (OSError, ValueError, KeyError) as e:
                 GLib.idle_add(self.on_weather_error, str(e))
                 return
+            try:
+                today["alerts"] = weather_alerts.fetch_active_alerts(lat, lon)
+            except (OSError, ValueError, KeyError):
+                # Environment Canada only — this legitimately fails/returns
+                # nothing for locations outside Canada, and is a bonus on
+                # top of the core forecast either way, so never block on it.
+                today["alerts"] = []
             GLib.idle_add(self.on_weather_ready, today)
 
         threading.Thread(target=worker, daemon=True).start()
@@ -464,6 +475,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.weather_summary_label.set_label(f"Couldn't get weather: {message}")
         self.weather_current_label.set_label("")
         self.weather_table.set_visible(False)
+        self._clear_box(self.alerts_box)
         self._set_status_icon(self.weather_status_icon, "error")
         return False
 
@@ -506,6 +518,25 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         self.weather_table.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
         self.weather_table.center_on_now()
+        self.render_alerts(d.get("alerts", []))
+
+    def render_alerts(self, alerts):
+        self._clear_box(self.alerts_box)
+        for alert in alerts:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+            css_class = {"red": "error", "orange": "warning", "yellow": "warning"}.get(alert["risk_colour"], "accent")
+            icon = Gtk.Image(icon_name="dialog-warning-symbolic")
+            icon.add_css_class(css_class)
+            row.append(icon)
+
+            label = Gtk.Label(label=alert["headline"], xalign=0, hexpand=True, wrap=True)
+            label.add_css_class(css_class)
+            if alert.get("text"):
+                label.set_tooltip_text(alert["text"])
+            row.append(label)
+
+            self.alerts_box.append(row)
 
     # --- backups ---
 
