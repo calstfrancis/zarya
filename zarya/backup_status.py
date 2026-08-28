@@ -31,7 +31,7 @@ def show(unit, props):
     return d
 
 
-def last_timer_run(timer_unit):
+def timer_runs(timer_unit):
     try:
         out = subprocess.run(
             ["systemctl", "--user", "list-timers", timer_unit, "--output=json"],
@@ -39,11 +39,13 @@ def last_timer_run(timer_unit):
         ).stdout
         timers = json.loads(out) if out.strip() else []
     except Exception:
-        return None
+        return None, None
     if not timers:
-        return None
+        return None, None
     entry = timers[0]
-    return entry.get("last") or entry.get("last_usec") or entry.get("last_trigger_usec")
+    last_run = entry.get("last") or entry.get("last_usec") or entry.get("last_trigger_usec")
+    next_run = entry.get("next") or entry.get("next_usec") or entry.get("next_elapse_usec_realtime")
+    return last_run, next_run
 
 
 if jobs_dir.exists():
@@ -73,6 +75,7 @@ if jobs_dir.exists():
             else:
                 state = "idle"
             last_run = None
+            next_run = None
             last_run_text = props.get("ActiveEnterTimestamp") or None
         else:
             props = show(service, ["ActiveState", "Result"])
@@ -80,7 +83,9 @@ if jobs_dir.exists():
             enabled = timer_props.get("UnitFileState") == "enabled"
             result = props.get("Result", "")
             active = props.get("ActiveState", "")
-            last_run = last_timer_run(timer)
+            last_run, next_run = timer_runs(timer)
+            if not enabled:
+                next_run = None
             last_run_text = None
             if active in ("activating", "reloading"):
                 state = "running"
@@ -99,6 +104,7 @@ if jobs_dir.exists():
             "result": result,
             "last_run": last_run,
             "last_run_text": last_run_text,
+            "next_run": next_run,
         })
 
 print(json.dumps(results))

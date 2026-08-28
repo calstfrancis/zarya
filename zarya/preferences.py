@@ -78,7 +78,11 @@ class PreferencesWindow(Adw.PreferencesWindow):
         if error:
             self.calendar_status_label.set_label(f"Couldn't connect: {error}")
             return
-        keyring.store_google_refresh_token(refresh_token)
+        try:
+            keyring.store_google_refresh_token(refresh_token)
+        except keyring.KeyringError as e:
+            self.calendar_status_label.set_label(f"Couldn't save to system keyring: {e}")
+            return
         self._refresh_calendar_status()
         self.on_calendar_changed()
 

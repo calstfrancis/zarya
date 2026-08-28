@@ -24,6 +24,7 @@ modules:
       - type: file
         path: io.github.calstfrancis.zarya.metainfo.xml
     build-commands:
+      - cp CHANGELOG.md zarya/data/CHANGELOG.md
       - pip3 install --prefix=/app --no-build-isolation .
       - install -Dm644 io.github.calstfrancis.zarya.desktop /app/share/applications/io.github.calstfrancis.zarya.desktop
       - install -Dm644 zarya/data/io.github.calstfrancis.zarya.svg /app/share/icons/hicolor/scalable/apps/io.github.calstfrancis.zarya.svg

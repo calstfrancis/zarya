@@ -12,6 +12,26 @@
   whenever it loads or refreshes.
 - The update log is now its own collapsible section, like Weather/Backups/
   Events.
+- Added a persistent to-do sidebar (right side), Fondwave-styled, with a
+  simple add/check-off/remove list stored in config.
+- Added a desktop notification when an update finishes, success or failure.
+- Added a run-history strip (last 14 runs, colored dots with date tooltips)
+  next to the success/failure status row.
+- Added a best-effort summary line ("zypper: N upgraded, M new · flatpak: K
+  updated") parsed from the update output.
+- Backups section now shows each job's next scheduled run alongside its last
+  run.
+- Added a "Preview" button that dry-runs `zypper dup` so you can see what
+  would change before committing to a real run.
+- Added a "What's New" panel (hamburger menu) that renders `CHANGELOG.md`
+  live, matching the convention used by Zerkalo/Rubric/etc.
+- Fixed a real crash: `keyring.py` let a `GLib.Error` from the Secret
+  Service escape uncaught whenever it wasn't reachable (not running yet,
+  still locked, timing during startup) — a lookup at window construction
+  time could crash the whole app on launch. All keyring calls now handle
+  this gracefully (lookup returns `None`, store/clear raise a catchable
+  `KeyringError`) instead of propagating the raw D-Bus error. Found via a
+  headless smoke test, not just inferred.
 
 ## [0.1.0] "Coral Dawn" — first release: daily update runner with weather, backups, and calendar
 

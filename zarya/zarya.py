@@ -1,5 +1,6 @@
 import datetime
 import json
+import re
 import sys
 import threading
 from pathlib import Path
@@ -11,9 +12,10 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import backup_status, google_calendar, keyring, styles, weather
+from . import __version__, backup_status, changelog, google_calendar, keyring, styles, weather
 from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
+from .todo_sidebar import TodoSidebar
 from .weather_table import WeatherTable
 
 APP_ID = "io.github.calstfrancis.zarya"
@@ -82,6 +84,56 @@ def save_result(success: bool) -> None:
     }))
 
 
+def history_path() -> Path:
+    return Path(GLib.get_user_cache_dir()) / "zarya" / "history.json"
+
+
+HISTORY_LIMIT = 14
+
+
+def load_history() -> list:
+    path = history_path()
+    if not path.exists():
+        return []
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def append_history(success: bool) -> list:
+    history = load_history()
+    history.append({"date": datetime.date.today().isoformat(), "success": success})
+    history = history[-HISTORY_LIMIT:]
+    path = history_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(history))
+    return history
+
+
+def summarize_updates(text):
+    """Best-effort summary of what actually changed, parsed from zypper's and
+    flatpak's own output — never load-bearing, just a nicety, so any failure
+    to match just means no summary line rather than a crash."""
+    parts = []
+    m = re.search(
+        r"(\d+) packages? to upgrade(?:,\s*(\d+) new)?(?:,\s*(\d+) to (?:remove|downgrade))?",
+        text,
+    )
+    if m:
+        upgrade, new, remove = m.groups()
+        bits = [f"{upgrade} upgraded"]
+        if new:
+            bits.append(f"{new} new")
+        if remove:
+            bits.append(f"{remove} removed")
+        parts.append("zypper: " + ", ".join(bits))
+    flatpak_count = len(re.findall(r"^\s*\d+\.\s+\S+", text, re.M))
+    if flatpak_count:
+        parts.append(f"flatpak: {flatpak_count} updated")
+    return " · ".join(parts) if parts else None
+
+
 STATE_COLORS = {
     "ok": "success",
     "failed": "error",
@@ -104,7 +156,7 @@ STATE_LABELS = {
 class ZaryaWindow(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app, title="Zarya")
-        self.set_default_size(700, 780)
+        self.set_default_size(980, 780)
 
         self.proc = None
         self.weather_data = None
@@ -125,6 +177,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
         prefs_button.get_child().set_halign(Gtk.Align.START)
         prefs_button.connect("clicked", self.on_preferences_clicked)
         menu_box.append(prefs_button)
+        whats_new_button = Gtk.Button(label="What's New", has_frame=False)
+        whats_new_button.set_halign(Gtk.Align.FILL)
+        whats_new_button.get_child().set_halign(Gtk.Align.START)
+        whats_new_button.connect("clicked", self.on_whats_new_clicked)
+        menu_box.append(whats_new_button)
         about_button = Gtk.Button(label="About Zarya", has_frame=False)
         about_button.set_halign(Gtk.Align.FILL)
         about_button.get_child().set_halign(Gtk.Align.START)
@@ -155,6 +212,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
         result_box.append(self.result_icon)
         result_box.append(self.result_label)
         root_box.append(result_box)
+
+        self.history_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        root_box.append(self.history_box)
 
         # --- Weather ---
         weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -230,6 +290,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
         spacer = Gtk.Box(hexpand=True)
         button_row.append(spacer)
 
+        self.preview_button = Gtk.Button(label="Preview")
+        self.preview_button.set_tooltip_text("Dry-run zypper to see what would change, without installing anything")
+        self.preview_button.connect("clicked", self.on_preview_clicked)
+        button_row.append(self.preview_button)
+
         self.run_button = Gtk.Button(label="Run Now")
         self.run_button.add_css_class("suggested-action")
         self.run_button.connect("clicked", self.on_run_clicked)
@@ -247,7 +312,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         root_box.append(button_row)
 
         self.toast_overlay.set_child(root_box)
-        toolbar_view.set_content(self.toast_overlay)
+
+        main_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.toast_overlay.set_hexpand(True)
+        main_hbox.append(self.toast_overlay)
+        self.todo_sidebar = TodoSidebar(self.config, save_config)
+        main_hbox.append(self.todo_sidebar)
+
+        toolbar_view.set_content(main_hbox)
         self.set_content(toolbar_view)
 
         self.refresh_status()
@@ -318,12 +390,28 @@ class ZaryaWindow(Adw.ApplicationWindow):
             transient_for=self,
             application_name="Zarya",
             application_icon=APP_ID,
-            version="0.1.0-dev",
+            version=__version__,
             developer_name="Praxis",
             license_type=Gtk.License.GPL_3_0,
             website="https://github.com/calstfrancis/zarya",
         )
         about.present()
+
+    def on_whats_new_clicked(self, _button):
+        self.menu_popover.popdown()
+        window = Adw.Window(transient_for=self, modal=True, default_width=480, default_height=560, title="What's New")
+        toolbar_view = Adw.ToolbarView()
+        toolbar_view.add_top_bar(Adw.HeaderBar())
+        scrolled = Gtk.ScrolledWindow(vexpand=True)
+        label = Gtk.Label(
+            xalign=0, valign=Gtk.Align.START, wrap=True, selectable=True,
+            margin_top=12, margin_bottom=12, margin_start=12, margin_end=12,
+        )
+        label.set_markup(changelog.to_pango_markup(changelog.load_text()))
+        scrolled.set_child(label)
+        toolbar_view.set_content(scrolled)
+        window.set_content(toolbar_view)
+        window.present()
 
     # --- weather ---
 
@@ -430,22 +518,27 @@ class ZaryaWindow(Adw.ApplicationWindow):
             state_label = Gtk.Label(label=STATE_LABELS.get(state, state))
             state_label.add_css_class(STATE_COLORS.get(state, "dim-label"))
             row.append(state_label)
-            last_run_text = self._format_backup_last_run(job)
+            last_run_text = self._format_backup_time(job.get("last_run")) or job.get("last_run_text")
             if last_run_text:
-                last_run_label = Gtk.Label(label=last_run_text)
+                last_run_label = Gtk.Label(label=f"last {last_run_text}")
                 last_run_label.add_css_class("dim-label")
                 row.append(last_run_label)
+            next_run_text = self._format_backup_time(job.get("next_run"))
+            if next_run_text:
+                next_run_label = Gtk.Label(label=f"next {next_run_text}")
+                next_run_label.add_css_class("dim-label")
+                row.append(next_run_label)
             self.backup_box.append(row)
 
     @staticmethod
-    def _format_backup_last_run(job):
-        last_run = job.get("last_run")
-        if isinstance(last_run, (int, float)) and last_run > 0:
-            try:
-                dt = datetime.datetime.fromtimestamp(last_run / 1_000_000)
-                return dt.strftime("%Y-%m-%d %H:%M")
-            except (OverflowError, OSError, ValueError):
-                return None
+    def _format_backup_time(epoch_micros):
+        if not isinstance(epoch_micros, (int, float)) or epoch_micros <= 0:
+            return None
+        try:
+            dt = datetime.datetime.fromtimestamp(epoch_micros / 1_000_000)
+            return dt.strftime("%Y-%m-%d %H:%M")
+        except (OverflowError, OSError, ValueError):
+            return None
         return job.get("last_run_text") or None
 
     # --- calendar ---
@@ -562,6 +655,20 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.result_label.set_label(f"Last update failed at {result.get('time', '?')}")
             self.result_label.add_css_class("error")
 
+        self.render_history()
+
+    def render_history(self):
+        child = self.history_box.get_first_child()
+        while child is not None:
+            next_child = child.get_next_sibling()
+            self.history_box.remove(child)
+            child = next_child
+        for entry in load_history():
+            dot = Gtk.Image(icon_name="media-record-symbolic", pixel_size=10)
+            dot.add_css_class("success" if entry.get("success") else "error")
+            dot.set_tooltip_text(f"{entry.get('date', '?')}: {'succeeded' if entry.get('success') else 'failed'}")
+            self.history_box.append(dot)
+
     def on_autostart_toggled(self, switch, state):
         path = autostart_path()
         try:
@@ -580,6 +687,27 @@ class ZaryaWindow(Adw.ApplicationWindow):
             return
         self.start_updates()
 
+    def on_preview_clicked(self, _button):
+        if self.proc is not None:
+            return
+        self.buffer.set_text("")
+        self._set_running(True)
+        self.status_label.set_label("Previewing…")
+        self.logline(f"=== Zarya preview: {self.today_str()} ===")
+        self.logline("")
+        self.logline("--- zypper dry-run (nothing will actually be installed) ---")
+        self.run_step(
+            ["flatpak-spawn", "--host", "pkexec", "sh", "-c", "zypper ref && zypper dup --dry-run"],
+            self.on_preview_done,
+        )
+
+    def on_preview_done(self, success, exit_status):
+        self.logline("")
+        self.logline("Preview finished." if success else f"Preview failed (exit status {exit_status}).")
+        self.proc = None
+        self._set_running(False)
+        self.refresh_status()
+
     def on_cancel_clicked(self, _button):
         if self.proc is None:
             return
@@ -590,12 +718,16 @@ class ZaryaWindow(Adw.ApplicationWindow):
         except GLib.Error as e:
             self.logline(f"[cancel error: {e}]")
 
+    def _set_running(self, running):
+        self.run_button.set_sensitive(not running)
+        self.preview_button.set_sensitive(not running)
+        self.cancel_button.set_sensitive(running)
+
     def start_updates(self):
         if self.proc is not None:
             return
         self.buffer.set_text("")
-        self.run_button.set_sensitive(False)
-        self.cancel_button.set_sensitive(True)
+        self._set_running(True)
         self.status_label.set_label("Updating…")
         self.logline(f"=== Zarya update: {self.today_str()} ===")
         self.logline("")
@@ -628,15 +760,39 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def finish(self, success):
         self.proc = None
-        self.run_button.set_sensitive(True)
-        self.cancel_button.set_sensitive(False)
+        self._set_running(False)
         save_result(success)
+        append_history(success)
+
+        summary = None
         if success:
             self.mark_done()
+            full_text = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter(), False)
+            summary = summarize_updates(full_text)
+            if summary:
+                self.logline(f"Summary: {summary}")
             self.logline("All done.")
         else:
             self.logline("Not marking today as done — you can retry with Run Anyway.")
+
+        self.send_result_notification(success, summary)
         self.refresh_status()
+
+    def send_result_notification(self, success, summary):
+        app = self.get_application()
+        if app is None:
+            return
+        notification = Gio.Notification.new("Zarya")
+        if success:
+            body = "Update completed successfully."
+            if summary:
+                body += f" {summary}"
+            notification.set_body(body)
+            notification.set_icon(Gio.ThemedIcon.new("emblem-ok-symbolic"))
+        else:
+            notification.set_body("Update failed — open Zarya to see the log.")
+            notification.set_icon(Gio.ThemedIcon.new("dialog-error-symbolic"))
+        app.send_notification("zarya-update", notification)
 
     def run_step(self, argv, done_callback):
         launcher = Gio.SubprocessLauncher.new(
