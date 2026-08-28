@@ -35,3 +35,7 @@
   the header to fold/unfold, state persisted), each with a status icon in
   the header: a check if everything's fine, an error mark if a fetch failed
   or (for Backups) any job's last run failed.
+- Filled in the real Google OAuth client ID/secret — "Connect Google
+  Calendar" in Preferences is now functional (repo is private, so committing
+  the Desktop-app client secret is fine; Google's own model doesn't treat it
+  as confidential anyway).

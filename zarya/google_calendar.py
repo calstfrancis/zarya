@@ -19,8 +19,8 @@ SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
 # From the Google Cloud OAuth client (type "Desktop app") set up for Zarya.
 # Not secret in the confidential sense — Google issues a client_secret even
 # for installed-app clients, but it's shipped in the app like the client_id.
-CLIENT_ID = "REPLACE_ME.apps.googleusercontent.com"
-CLIENT_SECRET = "REPLACE_ME"
+CLIENT_ID = "916752950525-m2lhrveifvecr271kfj33r61rpvkgup9.apps.googleusercontent.com"
+CLIENT_SECRET = "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"
 
 
 class _CallbackHandler(http.server.BaseHTTPRequestHandler):
