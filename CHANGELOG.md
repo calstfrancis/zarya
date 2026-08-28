@@ -50,6 +50,12 @@
   sun, perspective grid) to match.
 - Backups section now has a button to open Pereprava directly (via
   flatpak-spawn --host, same mechanism as the update/backup-status calls).
+- Update log is bigger by default (min content height 260px, window
+  default 700x780) so it's actually readable without resizing.
+- Update log now uses the Fondwave Konsole colorscheme (cream background,
+  plum text) directly, reproduced in CSS rather than depending on that
+  Konsole profile being installed — with failed/error/cancelled lines in
+  the scheme's deep-berry red and "All done." in its dark-sage green.
 - Fixed: `flatpak update -y` failed with "Deploy not allowed for user" —
   it updates both user and system-wide flatpak installs, but the system
   ones need privilege the same way zypper does, and there was no way to

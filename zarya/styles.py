@@ -1,6 +1,7 @@
 import gi
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
 
 from gi.repository import Gdk, Gtk
 
@@ -15,6 +16,17 @@ PEACH_TAN = "#E8B87E"
 IVORY_DAWN = "#FAF3E8"
 CREAM_LABEL = "#F6ECD9"
 
+# Fondwave.colorscheme (Konsole) — the light/cream variant, reproduced here
+# directly so the log view matches it even on a machine that never installed
+# the actual Konsole profile. Background/foreground are the canonical
+# palette; the ANSI-derived accents (dark sage/teal) only exist in the
+# Konsole scheme, not the core Fondwave hex list.
+TERMINAL_BG = "#F0E6D8"
+TERMINAL_FG = "#4A3B56"
+TERMINAL_RED = "#8B2F5C"
+TERMINAL_GREEN = "#495D47"
+TERMINAL_CYAN = "#425662"
+
 FONDWAVE_CSS = f"""
 .fondwave-card {{
   background-image: linear-gradient(135deg,
@@ -28,6 +40,15 @@ FONDWAVE_CSS = f"""
 .fondwave-card label.accent {{ color: {IVORY_DAWN}; font-weight: 800; }}
 .fondwave-card button {{ color: {IVORY_DAWN}; }}
 .fondwave-card scrollbar {{ opacity: 0.6; }}
+
+.fondwave-terminal, .fondwave-terminal textview, .fondwave-terminal textview text {{
+  background-color: {TERMINAL_BG};
+  color: {TERMINAL_FG};
+}}
+.fondwave-terminal textview text selection {{
+  background-color: {TERMINAL_FG};
+  color: {TERMINAL_BG};
+}}
 """
 
 

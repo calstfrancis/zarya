@@ -104,7 +104,7 @@ STATE_LABELS = {
 class ZaryaWindow(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app, title="Zarya")
-        self.set_default_size(680, 560)
+        self.set_default_size(700, 780)
 
         self.proc = None
         self.weather_data = None
@@ -190,7 +190,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         # --- Update log ---
         scrolled = Gtk.ScrolledWindow(vexpand=True)
+        scrolled.set_min_content_height(260)
         scrolled.add_css_class("card")
+        scrolled.add_css_class("fondwave-terminal")
         self.text_view = Gtk.TextView(
             editable=False,
             monospace=True,
@@ -201,6 +203,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
             right_margin=8,
         )
         self.buffer = self.text_view.get_buffer()
+        self.log_error_tag = self.buffer.create_tag("log-error", foreground=styles.TERMINAL_RED)
+        self.log_success_tag = self.buffer.create_tag("log-success", foreground=styles.TERMINAL_GREEN)
         scrolled.set_child(self.text_view)
         root_box.append(scrolled)
 
@@ -480,7 +484,18 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.text_view.scroll_to_iter(self.buffer.get_end_iter(), 0.0, False, 0, 0)
 
     def logline(self, text):
-        self.log(text.rstrip("\n") + "\n")
+        text = text.rstrip("\n") + "\n"
+        start_offset = self.buffer.get_end_iter().get_offset()
+        self.log(text)
+        lower = text.lower()
+        tag = None
+        if "failed" in lower or "error" in lower or "cancelling" in lower:
+            tag = self.log_error_tag
+        elif "all done" in lower:
+            tag = self.log_success_tag
+        if tag is not None:
+            start_iter = self.buffer.get_iter_at_offset(start_offset)
+            self.buffer.apply_tag(tag, start_iter, self.buffer.get_end_iter())
 
     def today_str(self):
         return datetime.date.today().isoformat()
