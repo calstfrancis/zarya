@@ -67,6 +67,7 @@ def fetch_today(lat, lon):
         "longitude": lon,
         "daily": "weather_code,temperature_2m_max,temperature_2m_min",
         "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability",
+        "current": "temperature_2m,apparent_temperature",
         "timezone": "auto",
         "forecast_days": 1,
     }
@@ -75,6 +76,7 @@ def fetch_today(lat, lon):
         data = json.load(resp)
     daily = data["daily"]
     hourly = data["hourly"]
+    current = data.get("current") or {}
     return {
         "code": daily["weather_code"][0],
         "temp_max_c": daily["temperature_2m_max"][0],
@@ -83,4 +85,6 @@ def fetch_today(lat, lon):
         "temp_c": hourly["temperature_2m"],
         "humidity": [v if v is not None else 0 for v in hourly["relative_humidity_2m"]],
         "precip_prob": [v if v is not None else 0 for v in hourly["precipitation_probability"]],
+        "current_temp_c": current.get("temperature_2m"),
+        "feels_like_c": current.get("apparent_temperature"),
     }

@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0] — dev
+
+- Renamed "Today's Events" to "Today's Events & Due Dates".
+- Weather panel now shows current temperature and "feels like" (Open-Meteo's
+  apparent temperature — accounts for wind and humidity year-round, so no
+  separate summer-only humidex figure needed) at the top right.
+- Weather's hourly table now has a frozen left label column (Hour/Temp/
+  Humidity/Rain stay visible while scrolling), scrolls horizontally on a
+  plain mouse wheel (no Shift needed), and auto-centers on the current hour
+  whenever it loads or refreshes.
+- The update log is now its own collapsible section, like Weather/Backups/
+  Events.
+
 ## [0.1.0] "Coral Dawn" — first release: daily update runner with weather, backups, and calendar
 
 ### Added

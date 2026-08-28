@@ -159,9 +159,16 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # --- Weather ---
         weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         weather_content.add_css_class("fondwave-card")
-        self.weather_summary_label = Gtk.Label(xalign=0, wrap=True)
+
+        weather_top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.weather_summary_label = Gtk.Label(xalign=0, hexpand=True, wrap=True)
         self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
-        weather_content.append(self.weather_summary_label)
+        weather_top_row.append(self.weather_summary_label)
+        self.weather_current_label = Gtk.Label(xalign=1)
+        self.weather_current_label.add_css_class("title-4")
+        weather_top_row.append(self.weather_current_label)
+        weather_content.append(weather_top_row)
+
         self.weather_table = WeatherTable()
         self.weather_table.set_visible(False)
         weather_content.append(self.weather_table)
@@ -184,7 +191,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # --- Today's events ---
         self.events_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         events_expander, self.events_status_icon = self._make_section(
-            "events", "Today's Events", self.events_box, self.fetch_events
+            "events", "Today's Events & Due Dates", self.events_box, self.fetch_events
         )
         root_box.append(events_expander)
 
@@ -206,7 +213,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.log_error_tag = self.buffer.create_tag("log-error", foreground=styles.TERMINAL_RED)
         self.log_success_tag = self.buffer.create_tag("log-success", foreground=styles.TERMINAL_GREEN)
         scrolled.set_child(self.text_view)
-        root_box.append(scrolled)
+        log_expander, _log_status_icon = self._make_section(
+            "log", "Update Log", scrolled, show_icon=False
+        )
+        root_box.append(log_expander)
 
         button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
 
@@ -249,7 +259,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         else:
             self._set_box_message(self.events_box, "Connect Google Calendar in Preferences to see today's events.")
 
-    def _make_section(self, key, title, content, on_refresh, extra_button=None):
+    def _make_section(self, key, title, content, on_refresh=None, extra_button=None, show_icon=True):
         status_icon = Gtk.Image()
         status_icon.set_pixel_size(16)
 
@@ -257,13 +267,15 @@ class ZaryaWindow(Adw.ApplicationWindow):
         title_label = Gtk.Label(label=title, xalign=0, hexpand=True)
         title_label.add_css_class("heading")
         header_box.append(title_label)
-        header_box.append(status_icon)
+        if show_icon:
+            header_box.append(status_icon)
         if extra_button is not None:
             header_box.append(extra_button)
-        refresh_button = Gtk.Button(icon_name="view-refresh-symbolic", has_frame=False)
-        refresh_button.set_tooltip_text(f"Refresh {title.lower()}")
-        refresh_button.connect("clicked", lambda *_: on_refresh())
-        header_box.append(refresh_button)
+        if on_refresh is not None:
+            refresh_button = Gtk.Button(icon_name="view-refresh-symbolic", has_frame=False)
+            refresh_button.set_tooltip_text(f"Refresh {title.lower()}")
+            refresh_button.connect("clicked", lambda *_: on_refresh())
+            header_box.append(refresh_button)
 
         expander = Gtk.Expander()
         expander.set_label_widget(header_box)
@@ -323,6 +335,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self._set_status_icon(self.weather_status_icon, "neutral")
             return
         self.weather_summary_label.set_label(f"Loading weather for {location}…")
+        self.weather_current_label.set_label("")
 
         def worker():
             try:
@@ -338,6 +351,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def on_weather_error(self, message):
         self.weather_summary_label.set_label(f"Couldn't get weather: {message}")
+        self.weather_current_label.set_label("")
         self.weather_table.set_visible(False)
         self._set_status_icon(self.weather_status_icon, "error")
         return False
@@ -366,7 +380,21 @@ class ZaryaWindow(Adw.ApplicationWindow):
             unit_letter = "C"
         desc = weather.describe(d["code"])
         self.weather_summary_label.set_label(f"{d['label']}: {desc}, {hi}°{unit_letter} / {lo}°{unit_letter}")
+
+        if d.get("current_temp_c") is not None:
+            convert = weather.celsius_to_fahrenheit if units == "fahrenheit" else (lambda c: c)
+            cur = round(convert(d["current_temp_c"]))
+            current_text = f"{cur}°{unit_letter}"
+            if d.get("feels_like_c") is not None:
+                feels = round(convert(d["feels_like_c"]))
+                if feels != cur:
+                    current_text += f" · feels {feels}°{unit_letter}"
+            self.weather_current_label.set_label(current_text)
+        else:
+            self.weather_current_label.set_label("")
+
         self.weather_table.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
+        self.weather_table.center_on_now()
 
     # --- backups ---
 
