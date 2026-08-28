@@ -20,7 +20,9 @@
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
       <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
-      <li>Today's Google Calendar events</li>
+      <li>Today's Google Calendar events and due dates</li>
+      <li>A persistent to-do sidebar</li>
+      <li>Desktop notification, run history, and a "Preview" dry-run before committing to a real update</li>
       <li>Optional autostart at login</li>
     </ul>
   </description>
@@ -36,6 +38,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.0" date="2026-08-28">
+      <description>
+        <p>
+          "Amber Horizon". Current temperature and "feels like" on the weather
+          panel, a frozen-column hourly table that scrolls on a plain wheel and
+          centers on now, a persistent to-do sidebar, desktop notifications,
+          run history, a "Preview" dry-run button, and a "What's New" panel.
+          Every status now pairs an icon with its color, not color alone.
+        </p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-08-28">
       <description>
         <p>

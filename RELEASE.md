@@ -1,5 +1,38 @@
 # Release Notes
 
+## [0.2.0] "Amber Horizon" — weather polish, to-do sidebar, notifications
+
+### Added
+
+- Weather panel shows current temperature and "feels like" (Open-Meteo's
+  apparent temperature — covers wind chill and heat index year-round) at the
+  top right.
+- Weather's hourly table has a frozen left label column, scrolls horizontally
+  on a plain mouse wheel, and auto-centers on the current hour whenever it
+  loads or refreshes. Numbers use tabular figures for clean alignment.
+- The update log is now its own collapsible section.
+- A persistent to-do sidebar (Fondwave-styled): add/check-off/remove, saved
+  to config.
+- A desktop notification when an update finishes, success or failure.
+- A run-history strip (last 14 runs) and a best-effort update summary line
+  parsed from zypper/flatpak output.
+- Backups section shows each job's next scheduled run; every status now
+  pairs a colored label with an icon, not color alone (Backups and Today's
+  Events both) — matching the accessibility commitments published on
+  calstfrancis.github.io.
+- A "Preview" button that dry-runs `zypper dup`.
+- A "What's New" panel (hamburger menu) rendering `CHANGELOG.md` live.
+- "Today's Events" renamed to "Today's Events & Due Dates".
+
+### Fixed
+
+- A real crash: `keyring.py` let a `GLib.Error` from the Secret Service
+  escape uncaught whenever it wasn't reachable — a lookup at
+  window-construction time could crash the app on launch. Found via a
+  headless smoke test.
+- The current-temp/feels-like label wasn't cleared when the location was
+  blank.
+
 ## [0.1.0] "Coral Dawn" — first release
 
 A daily update runner (zypper + flatpak, one password prompt) that grew into

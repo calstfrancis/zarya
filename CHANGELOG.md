@@ -1,55 +1,24 @@
 # Changelog
 
-## [0.2.0] — dev
+## [0.2.0] "Amber Horizon" — weather polish, to-do sidebar, notifications
 
+### Added
 - Renamed "Today's Events" to "Today's Events & Due Dates".
-- Weather panel now shows current temperature and "feels like" (Open-Meteo's
-  apparent temperature — accounts for wind and humidity year-round, so no
-  separate summer-only humidex figure needed) at the top right.
-- Weather's hourly table now has a frozen left label column (Hour/Temp/
-  Humidity/Rain stay visible while scrolling), scrolls horizontally on a
-  plain mouse wheel (no Shift needed), and auto-centers on the current hour
-  whenever it loads or refreshes.
-- The update log is now its own collapsible section, like Weather/Backups/
-  Events.
-- Added a persistent to-do sidebar (right side), Fondwave-styled, with a
-  simple add/check-off/remove list stored in config.
-- Added a desktop notification when an update finishes, success or failure.
-- Added a run-history strip (last 14 runs, colored dots with date tooltips)
-  next to the success/failure status row.
-- Added a best-effort summary line ("zypper: N upgraded, M new · flatpak: K
-  updated") parsed from the update output.
-- Backups section now shows each job's next scheduled run alongside its last
-  run.
-- Added a "Preview" button that dry-runs `zypper dup` so you can see what
-  would change before committing to a real run.
-- Added a "What's New" panel (hamburger menu) that renders `CHANGELOG.md`
-  live, matching the convention used by Zerkalo/Rubric/etc.
-- Fixed a real crash: `keyring.py` let a `GLib.Error` from the Secret
-  Service escape uncaught whenever it wasn't reachable (not running yet,
-  still locked, timing during startup) — a lookup at window construction
-  time could crash the whole app on launch. All keyring calls now handle
-  this gracefully (lookup returns `None`, store/clear raise a catchable
-  `KeyringError`) instead of propagating the raw D-Bus error. Found via a
-  headless smoke test, not just inferred.
+- Weather panel shows current temperature and "feels like" (Open-Meteo's apparent temperature — covers wind chill and heat index year-round, no separate humidex needed) at the top right.
+- Weather's hourly table has a frozen left label column (Hour/Temp/Humidity/Rain stay visible while scrolling), scrolls horizontally on a plain mouse wheel, and auto-centers on the current hour on every load/refresh. Numbers use tabular figures so columns stay aligned.
+- The update log is now its own collapsible section, like Weather/Backups/Events.
+- A persistent to-do sidebar (right side, Fondwave-styled): add/check-off/remove, saved to config, with an empty state and a tooltip on the checkbox.
+- A desktop notification when an update finishes, success or failure.
+- A run-history strip (last 14 runs, colored dots with date tooltips) labeled "Recent runs:", hidden until there's history to show.
+- A best-effort summary line ("zypper: N upgraded, M new · flatpak: K updated") parsed from the update output.
+- Backups section shows each job's next scheduled run alongside its last run, and every status now pairs a colored label with an icon — not color alone, matching the accessibility commitments already published on calstfrancis.github.io. Today's Events rows get the same icon treatment.
+- A "Preview" button (with icon) that dry-runs `zypper dup` so you can see what would change before committing to a real run.
+- A "What's New" panel (hamburger menu) that renders `CHANGELOG.md` live, matching the convention used by Zerkalo/Rubric/etc. About window gets a tagline and copyright.
+- Preferences: changing only the temperature unit re-renders cached data instead of refetching over the network; only an actual location change triggers a refetch.
 
-### Polish
-
-- Fixed: the current-temp/feels-like label wasn't cleared when the location
-  was blank, so it could show stale data after clearing your city.
-- Weather table numbers now use tabular figures so columns stay aligned
-  instead of wobbling with proportional-width digits.
-- Backups and Today's Events rows now pair every colored status with an
-  icon, not color alone (matches the accessibility commitments already
-  published on calstfrancis.github.io).
-- Changing only the temperature unit in Preferences no longer refetches
-  weather over the network — it re-renders the already-cached data.
-- To-do sidebar: empty state ("No tasks yet"), and a tooltip on the
-  checkbox.
-- Preview button now has an icon; About window has a tagline and copyright;
-  the run-history dots have a "Recent runs:" label instead of being an
-  unlabeled row of dots, and the whole row hides itself until there's
-  history to show.
+### Fixed
+- A real crash: `keyring.py` let a `GLib.Error` from the Secret Service escape uncaught whenever it wasn't reachable (not running yet, still locked, timing during startup) — a lookup at window-construction time could crash the app on launch. All keyring calls now handle this gracefully. Found via a headless smoke test.
+- The current-temp/feels-like label wasn't cleared when the location was blank, so it could show stale data after clearing your city.
 
 ## [0.1.0] "Coral Dawn" — first release: daily update runner with weather, backups, and calendar
 
