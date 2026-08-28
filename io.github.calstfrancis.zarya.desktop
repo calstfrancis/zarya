@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Zarya
+Comment=Runs system and flatpak updates at login
+Exec=zarya
+Icon=io.github.calstfrancis.zarya
+Categories=System;Utility;
+Terminal=false
+StartupNotify=true
+X-GNOME-SingleWindow=true
+StartupWMClass=zarya

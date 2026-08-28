@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.calstfrancis.zarya</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>Zarya</name>
+  <summary>Runs your system and flatpak updates at login</summary>
+
+  <description>
+    <p>
+      Zarya is a small GTK4 app that refreshes and dist-upgrades your system
+      packages (via zypper) and updates your flatpaks, showing live output in
+      a window. Run it by hand, or enable "Start at login" so it runs itself
+      once a day, first thing.
+    </p>
+    <ul>
+      <li>Runs zypper refresh + dist-upgrade with a single graphical password prompt</li>
+      <li>Runs flatpak update</li>
+      <li>Skips re-running if it already updated today</li>
+      <li>Optional autostart at login</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.calstfrancis.zarya.desktop</launchable>
+
+  <url type="homepage">https://github.com/calstfrancis/zarya</url>
+
+  <provides>
+    <binary>zarya</binary>
+  </provides>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+  </releases>
+</component>

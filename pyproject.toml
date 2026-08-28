@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zarya"
+version = "0.1.0-dev1"
+description = "Zarya — runs your system and flatpak updates at login"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "Praxis"}]
+requires-python = ">=3.10"
+
+dependencies = [
+    "PyGObject>=3.46",
+]
+
+[project.scripts]
+zarya = "zarya.zarya:main"
+
+[tool.setuptools]
+packages = ["zarya", "zarya.data"]
+
+[tool.setuptools.package-data]
+zarya = ["data/*"]
