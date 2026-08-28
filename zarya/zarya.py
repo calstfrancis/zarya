@@ -1,5 +1,7 @@
 import datetime
+import json
 import sys
+import threading
 from pathlib import Path
 
 import gi
@@ -8,6 +10,9 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
+
+from . import weather
+from .weather_chart import WeatherChart
 
 APP_ID = "io.github.calstfrancis.zarya"
 
@@ -30,12 +35,34 @@ def autostart_path() -> Path:
     return Path(GLib.get_user_config_dir()) / "autostart" / f"{APP_ID}.desktop"
 
 
+def config_path() -> Path:
+    return Path(GLib.get_user_config_dir()) / "zarya" / "config.json"
+
+
+def load_config() -> dict:
+    path = config_path()
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_config(config: dict) -> None:
+    path = config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(config))
+
+
 class ZaryaWindow(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app, title="Zarya")
         self.set_default_size(640, 440)
 
         self.proc = None
+        self.weather_data = None
+        self.config = load_config()
 
         toolbar_view = Adw.ToolbarView()
         header = Adw.HeaderBar()
@@ -55,6 +82,36 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.status_label = Gtk.Label(xalign=0)
         self.status_label.add_css_class("title-4")
         root_box.append(self.status_label)
+
+        weather_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        self.weather_summary_label = Gtk.Label(xalign=0, hexpand=True, wrap=True)
+        self.weather_summary_label.set_label("Set a location to see today's weather.")
+        weather_header.append(self.weather_summary_label)
+
+        self.location_entry = Gtk.Entry(placeholder_text="City, Country")
+        self.location_entry.set_size_request(180, -1)
+        if self.config.get("location"):
+            self.location_entry.set_text(self.config["location"])
+        self.location_entry.connect("activate", self.on_location_activate)
+        weather_header.append(self.location_entry)
+
+        self.units_button = Gtk.Button(
+            label="°F" if self.config.get("units", "fahrenheit") == "fahrenheit" else "°C"
+        )
+        self.units_button.connect("clicked", self.on_units_clicked)
+        weather_header.append(self.units_button)
+
+        weather_refresh_button = Gtk.Button(icon_name="view-refresh-symbolic")
+        weather_refresh_button.set_tooltip_text("Refresh weather")
+        weather_refresh_button.connect("clicked", lambda *_: self.fetch_weather())
+        weather_header.append(weather_refresh_button)
+
+        root_box.append(weather_header)
+
+        self.weather_chart = WeatherChart()
+        self.weather_chart.set_visible(False)
+        root_box.append(self.weather_chart)
 
         scrolled = Gtk.ScrolledWindow(vexpand=True)
         scrolled.add_css_class("card")
@@ -88,6 +145,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.run_button.connect("clicked", self.on_run_clicked)
         button_row.append(self.run_button)
 
+        self.cancel_button = Gtk.Button(label="Cancel")
+        self.cancel_button.set_sensitive(False)
+        self.cancel_button.connect("clicked", self.on_cancel_clicked)
+        button_row.append(self.cancel_button)
+
         close_button = Gtk.Button(label="Close")
         close_button.connect("clicked", lambda *_: self.close())
         button_row.append(close_button)
@@ -99,6 +161,73 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.set_content(toolbar_view)
 
         self.refresh_status()
+        if self.config.get("location"):
+            self.fetch_weather()
+
+    def on_location_activate(self, entry):
+        location = entry.get_text().strip()
+        if not location:
+            return
+        self.config["location"] = location
+        save_config(self.config)
+        self.fetch_weather()
+
+    def on_units_clicked(self, button):
+        current = self.config.get("units", "fahrenheit")
+        new_units = "celsius" if current == "fahrenheit" else "fahrenheit"
+        self.config["units"] = new_units
+        save_config(self.config)
+        button.set_label("°F" if new_units == "fahrenheit" else "°C")
+        self.render_weather()
+
+    def fetch_weather(self):
+        location = self.config.get("location", "").strip()
+        if not location:
+            self.weather_summary_label.set_label("Set a location to see today's weather.")
+            return
+        self.weather_summary_label.set_label(f"Loading weather for {location}…")
+
+        def worker():
+            try:
+                lat, lon, label = weather.geocode(location)
+                today = weather.fetch_today(lat, lon)
+                today["label"] = label
+            except (OSError, ValueError, KeyError) as e:
+                GLib.idle_add(self.on_weather_error, str(e))
+                return
+            GLib.idle_add(self.on_weather_ready, today)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def on_weather_error(self, message):
+        self.weather_summary_label.set_label(f"Couldn't get weather: {message}")
+        self.weather_chart.set_visible(False)
+        return False
+
+    def on_weather_ready(self, data):
+        self.weather_data = data
+        self.weather_chart.set_visible(True)
+        self.render_weather()
+        return False
+
+    def render_weather(self):
+        if not self.weather_data:
+            return
+        d = self.weather_data
+        units = self.config.get("units", "fahrenheit")
+        if units == "fahrenheit":
+            temps = [weather.celsius_to_fahrenheit(t) for t in d["temp_c"]]
+            hi = round(weather.celsius_to_fahrenheit(d["temp_max_c"]))
+            lo = round(weather.celsius_to_fahrenheit(d["temp_min_c"]))
+            unit_letter = "F"
+        else:
+            temps = d["temp_c"]
+            hi = round(d["temp_max_c"])
+            lo = round(d["temp_min_c"])
+            unit_letter = "C"
+        desc = weather.describe(d["code"])
+        self.weather_summary_label.set_label(f"{d['label']}: {desc}, {hi}°{unit_letter} / {lo}°{unit_letter}")
+        self.weather_chart.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
 
     def log(self, text):
         end = self.buffer.get_end_iter()
@@ -148,11 +277,22 @@ class ZaryaWindow(Adw.ApplicationWindow):
             return
         self.start_updates()
 
+    def on_cancel_clicked(self, _button):
+        if self.proc is None:
+            return
+        self.logline("")
+        self.logline("--- cancelling… ---")
+        try:
+            self.proc.force_exit()
+        except GLib.Error as e:
+            self.logline(f"[cancel error: {e}]")
+
     def start_updates(self):
         if self.proc is not None:
             return
         self.buffer.set_text("")
         self.run_button.set_sensitive(False)
+        self.cancel_button.set_sensitive(True)
         self.status_label.set_label("Updating…")
         self.logline(f"=== Zarya update: {self.today_str()} ===")
         self.logline("")
@@ -183,6 +323,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def finish(self, success):
         self.proc = None
         self.run_button.set_sensitive(True)
+        self.cancel_button.set_sensitive(False)
         if success:
             self.mark_done()
             self.logline("All done.")
@@ -201,18 +342,23 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.finish(success=False)
             return
 
-        stream = Gio.DataInputStream.new(self.proc.get_stdout_pipe())
-        self._pump_output(stream, done_callback)
+        # Completion is driven by the process actually exiting (wait_async),
+        # not by the stdout pipe reaching EOF: zypper/rpm can fork a helper
+        # (gpg-agent, etc.) that inherits the pipe's write end and keeps it
+        # open well after the command we care about has finished, which would
+        # otherwise leave the read loop waiting for an EOF that never comes.
+        proc = self.proc
+        stream = Gio.DataInputStream.new(proc.get_stdout_pipe())
+        self._pump_output(stream)
+        proc.wait_async(None, self._on_wait, done_callback)
 
-    def _pump_output(self, stream, done_callback):
+    def _pump_output(self, stream):
         def on_line(source, result):
             try:
                 line, _length = source.read_line_finish_utf8(result)
-            except GLib.Error as e:
-                self.logline(f"[read error: {e}]")
-                line = None
+            except GLib.Error:
+                return
             if line is None:
-                self.proc.wait_async(None, self._on_wait, done_callback)
                 return
             self.logline(line)
             source.read_line_async(GLib.PRIORITY_DEFAULT, None, on_line)
