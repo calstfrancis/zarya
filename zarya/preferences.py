@@ -9,11 +9,12 @@ from . import google_calendar, keyring
 
 
 class PreferencesWindow(Adw.PreferencesWindow):
-    def __init__(self, parent, config, save_config, on_weather_changed, on_calendar_changed):
+    def __init__(self, parent, config, save_config, on_weather_changed, on_units_changed, on_calendar_changed):
         super().__init__(transient_for=parent, modal=True)
         self.config = config
         self.save_config = save_config
         self.on_weather_changed = on_weather_changed
+        self.on_units_changed = on_units_changed
         self.on_calendar_changed = on_calendar_changed
 
         weather_page = Adw.PreferencesPage(title="Weather", icon_name="weather-clear-symbolic")
@@ -92,7 +93,14 @@ class PreferencesWindow(Adw.PreferencesWindow):
         self.on_calendar_changed()
 
     def on_weather_save(self, _button):
-        self.config["location"] = self.location_row.get_text().strip()
+        old_location = self.config.get("location", "")
+        new_location = self.location_row.get_text().strip()
+        self.config["location"] = new_location
         self.config["units"] = "celsius" if self.units_row.get_selected() == 0 else "fahrenheit"
         self.save_config(self.config)
-        self.on_weather_changed()
+        if new_location != old_location:
+            self.on_weather_changed()
+        else:
+            # Units-only change — no need to hit the network again, the
+            # window already has the raw Celsius data cached.
+            self.on_units_changed()

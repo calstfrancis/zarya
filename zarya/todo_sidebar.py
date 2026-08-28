@@ -72,10 +72,18 @@ class TodoSidebar(Gtk.Box):
             self.list_box.remove(child)
             child = next_child
 
-        for index, item in enumerate(self._todos()):
+        todos = self._todos()
+        if not todos:
+            empty_label = Gtk.Label(label="No tasks yet — add one above.", xalign=0, wrap=True)
+            empty_label.add_css_class("dim-label")
+            self.list_box.append(empty_label)
+            return
+
+        for index, item in enumerate(todos):
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
 
             check = Gtk.CheckButton(active=item.get("done", False))
+            check.set_tooltip_text("Mark not done" if item.get("done") else "Mark done")
             check.connect("toggled", self.on_toggle, index)
             row.append(check)
 

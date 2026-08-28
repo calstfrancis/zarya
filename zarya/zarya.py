@@ -152,6 +152,18 @@ STATE_LABELS = {
     "skipped": "Skipped",
 }
 
+# Status is never color-alone anywhere in Zarya (matches the accessibility
+# commitments on calstfrancis.github.io) — every colored state label pairs
+# with one of these icons too.
+STATE_ICONS = {
+    "ok": "emblem-ok-symbolic",
+    "failed": "dialog-error-symbolic",
+    "running": "content-loading-symbolic",
+    "paused": "media-playback-pause-symbolic",
+    "idle": "media-playback-stop-symbolic",
+    "skipped": "action-unavailable-symbolic",
+}
+
 
 class ZaryaWindow(Adw.ApplicationWindow):
     def __init__(self, app):
@@ -213,8 +225,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         result_box.append(self.result_label)
         root_box.append(result_box)
 
+        self.history_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        history_caption = Gtk.Label(label="Recent runs:")
+        history_caption.add_css_class("dim-label")
+        history_caption.add_css_class("caption")
+        self.history_row.append(history_caption)
         self.history_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        root_box.append(self.history_box)
+        self.history_row.append(self.history_box)
+        root_box.append(self.history_row)
 
         # --- Weather ---
         weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -290,7 +308,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         spacer = Gtk.Box(hexpand=True)
         button_row.append(spacer)
 
-        self.preview_button = Gtk.Button(label="Preview")
+        self.preview_button = Gtk.Button()
+        self.preview_button.set_child(Adw.ButtonContent(icon_name="view-reveal-symbolic", label="Preview"))
         self.preview_button.set_tooltip_text("Dry-run zypper to see what would change, without installing anything")
         self.preview_button.connect("clicked", self.on_preview_clicked)
         button_row.append(self.preview_button)
@@ -380,6 +399,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         prefs = PreferencesWindow(
             self, self.config, save_config,
             on_weather_changed=self.fetch_weather,
+            on_units_changed=self.render_weather,
             on_calendar_changed=self.fetch_events,
         )
         prefs.present()
@@ -394,6 +414,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
             developer_name="Praxis",
             license_type=Gtk.License.GPL_3_0,
             website="https://github.com/calstfrancis/zarya",
+            comments="A morning dashboard: system updates, weather, backup status, and today's events.",
+            copyright="© 2026 Praxis",
         )
         about.present()
 
@@ -419,6 +441,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         location = self.config.get("location", "").strip()
         if not location:
             self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
+            self.weather_current_label.set_label("")
             self.weather_table.set_visible(False)
             self._set_status_icon(self.weather_status_icon, "neutral")
             return
@@ -512,9 +535,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._clear_box(self.backup_box)
         for job in jobs:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            state = job.get("state", "idle")
+            state_icon = Gtk.Image(icon_name=STATE_ICONS.get(state, "action-unavailable-symbolic"))
+            state_icon.add_css_class(STATE_COLORS.get(state, "dim-label"))
+            row.append(state_icon)
             name_label = Gtk.Label(label=job.get("name", "?"), xalign=0, hexpand=True)
             row.append(name_label)
-            state = job.get("state", "idle")
             state_label = Gtk.Label(label=STATE_LABELS.get(state, state))
             state_label.add_css_class(STATE_COLORS.get(state, "dim-label"))
             row.append(state_label)
@@ -574,6 +600,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._clear_box(self.events_box)
         for event in events:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            icon = Gtk.Image(icon_name="x-office-calendar-symbolic" if event["all_day"] else "appointment-soon-symbolic")
+            icon.add_css_class("dim-label")
+            row.append(icon)
             time_text = "All day" if event["all_day"] else event["start"].strftime("%I:%M %p").lstrip("0")
             time_label = Gtk.Label(label=time_text)
             time_label.add_css_class("dim-label")
@@ -663,7 +692,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
             next_child = child.get_next_sibling()
             self.history_box.remove(child)
             child = next_child
-        for entry in load_history():
+        history = load_history()
+        self.history_row.set_visible(bool(history))
+        for entry in history:
             dot = Gtk.Image(icon_name="media-record-symbolic", pixel_size=10)
             dot.add_css_class("success" if entry.get("success") else "error")
             dot.set_tooltip_text(f"{entry.get('date', '?')}: {'succeeded' if entry.get('success') else 'failed'}")

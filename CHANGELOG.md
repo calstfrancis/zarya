@@ -33,6 +33,24 @@
   `KeyringError`) instead of propagating the raw D-Bus error. Found via a
   headless smoke test, not just inferred.
 
+### Polish
+
+- Fixed: the current-temp/feels-like label wasn't cleared when the location
+  was blank, so it could show stale data after clearing your city.
+- Weather table numbers now use tabular figures so columns stay aligned
+  instead of wobbling with proportional-width digits.
+- Backups and Today's Events rows now pair every colored status with an
+  icon, not color alone (matches the accessibility commitments already
+  published on calstfrancis.github.io).
+- Changing only the temperature unit in Preferences no longer refetches
+  weather over the network — it re-renders the already-cached data.
+- To-do sidebar: empty state ("No tasks yet"), and a tooltip on the
+  checkbox.
+- Preview button now has an icon; About window has a tagline and copyright;
+  the run-history dots have a "Recent runs:" label instead of being an
+  unlabeled row of dots, and the whole row hides itself until there's
+  history to show.
+
 ## [0.1.0] "Coral Dawn" — first release: daily update runner with weather, backups, and calendar
 
 ### Added

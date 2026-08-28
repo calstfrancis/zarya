@@ -23,6 +23,7 @@ class WeatherTable(Gtk.Box):
             column_spacing=10, row_spacing=4,
             margin_top=4, margin_bottom=4, margin_start=0, margin_end=4,
         )
+        self.data_grid.add_css_class("weather-figures")
         self.scroller = Gtk.ScrolledWindow(
             hscrollbar_policy=Gtk.PolicyType.AUTOMATIC,
             vscrollbar_policy=Gtk.PolicyType.NEVER,

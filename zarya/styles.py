@@ -41,6 +41,8 @@ FONDWAVE_CSS = f"""
 .fondwave-card button {{ color: {IVORY_DAWN}; }}
 .fondwave-card scrollbar {{ opacity: 0.6; }}
 
+.weather-figures label {{ font-feature-settings: "tnum"; }}
+
 .fondwave-terminal, .fondwave-terminal textview, .fondwave-terminal textview text {{
   background-color: {TERMINAL_BG};
   color: {TERMINAL_FG};
