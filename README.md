@@ -1,17 +1,24 @@
 # Zarya
 
-A small GTK4/libadwaita app that runs your system updates (`zypper ref && zypper dup`)
-and `flatpak update`, first thing in the morning.
+A small GTK4/libadwaita morning dashboard: it runs your system updates
+(`zypper ref && zypper dup` and `flatpak update`), then shows the day's
+weather, your backup status, and today's calendar events — all in one window.
 
-- Single graphical password prompt (via `pkexec`) for the zypper step
-- Runs `flatpak update` too
-- Shows live output in a window instead of a background silent job
-- Skips re-running if it already updated today
+- Single graphical password prompt (via `pkexec`) for the whole privileged step
+- Skips re-running if it already updated today; persistent success/failure status
 - Optional "Start at login" toggle
+- Daily weather report (Open-Meteo, no API key) as an hourly temperature/
+  humidity/rain table, styled with the Fondwave palette
+- Backup status read from [Pereprava](https://github.com/calstfrancis/pereprava)'s
+  rclone/rsync jobs, with a button to open it directly
+- Today's Google Calendar events (OAuth2 + PKCE; only a read-only refresh
+  token is stored, in the system keyring)
+- First-run onboarding wizard for city and calendar setup
 
-Zarya runs host `zypper`/`flatpak` commands via `flatpak-spawn --host` — it needs
-to manage the host system, so the flatpak sandbox is intentionally loose here
-(see the project's root `CLAUDE.md` note on Pereprava for the same tradeoff).
+Zarya runs host `zypper`/`flatpak`/`systemctl` commands via `flatpak-spawn --host`
+— it needs to manage the host system, so the flatpak sandbox is intentionally
+loose here (see the project's root `CLAUDE.md` note on Pereprava for the same
+tradeoff).
 
 ## Install
 
@@ -27,4 +34,11 @@ flatpak install calstfrancis io.github.calstfrancis.zarya
 flatpak run io.github.calstfrancis.zarya
 ```
 
-Toggle "Start at login" in the window to have it run automatically each day.
+First launch walks through a short onboarding wizard (city, optional Google
+Calendar connect). Toggle "Start at login" in the window to have it run
+automatically each day.
+
+## Privacy & Terms
+
+- [Privacy Policy](https://calstfrancis.github.io/privacy.html)
+- [Terms of Service](https://calstfrancis.github.io/terms.html)
