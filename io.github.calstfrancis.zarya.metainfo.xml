@@ -5,19 +5,22 @@
   <project_license>GPL-3.0-or-later</project_license>
 
   <name>Zarya</name>
-  <summary>Runs your system and flatpak updates at login</summary>
+  <summary>Your morning dashboard: system updates, weather, backups, and today's events</summary>
 
   <description>
     <p>
-      Zarya is a small GTK4 app that refreshes and dist-upgrades your system
-      packages (via zypper) and updates your flatpaks, showing live output in
-      a window. Run it by hand, or enable "Start at login" so it runs itself
-      once a day, first thing.
+      Zarya is a small GTK4 app for the first thing you do at the computer each
+      morning: refresh and dist-upgrade your system (via zypper), update your
+      flatpaks, and see a quick dashboard of the day — weather, backup status,
+      and today's calendar events. Run it by hand, or enable "Start at login"
+      so it runs itself once a day.
     </p>
     <ul>
-      <li>Runs zypper refresh + dist-upgrade with a single graphical password prompt</li>
-      <li>Runs flatpak update</li>
-      <li>Skips re-running if it already updated today</li>
+      <li>Runs zypper refresh + dist-upgrade and flatpak update with a single graphical password prompt</li>
+      <li>Skips re-running if it already updated today; persistent success/failure status</li>
+      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table</li>
+      <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
+      <li>Today's Google Calendar events</li>
       <li>Optional autostart at login</li>
     </ul>
   </description>
@@ -33,5 +36,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.1.0" date="2026-08-28">
+      <description>
+        <p>
+          First release, "Coral Dawn". A daily update runner (zypper + flatpak,
+          one password prompt) that grew into a small morning dashboard: an
+          hourly weather table, Pereprava backup status, and today's Google
+          Calendar events, each collapsible with an at-a-glance status icon.
+          First-run onboarding wizard for city and calendar setup.
+        </p>
+      </description>
+    </release>
   </releases>
 </component>
