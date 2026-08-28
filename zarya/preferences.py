@@ -3,9 +3,9 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, GLib, Gtk
+from gi.repository import Adw, Gtk
 
-from . import keyring
+from . import google_calendar, keyring
 
 
 class PreferencesWindow(Adw.PreferencesWindow):
@@ -39,56 +39,56 @@ class PreferencesWindow(Adw.PreferencesWindow):
 
         calendar_page = Adw.PreferencesPage(title="Calendar", icon_name="x-office-calendar-symbolic")
         calendar_group = Adw.PreferencesGroup(
-            title="CalDAV",
-            description="Reads today's events directly from a CalDAV server, e.g. Disroot's cloud.disroot.org.",
+            title="Google Calendar",
+            description="Opens your browser to sign in; only a read-only refresh token is stored, in the system keyring.",
         )
-
-        self.server_row = Adw.EntryRow(title="Server")
-        self.server_row.set_text(config.get("caldav_server", "cloud.disroot.org"))
-        calendar_group.add(self.server_row)
-
-        self.username_row = Adw.EntryRow(title="Username")
-        self.username_row.set_text(config.get("caldav_username", ""))
-        calendar_group.add(self.username_row)
-
-        self.password_row = Adw.PasswordEntryRow(title="App Password")
-        server = config.get("caldav_server")
-        username = config.get("caldav_username")
-        if server and username:
-            existing = keyring.lookup_password(server, username)
-            if existing:
-                self.password_row.set_text(existing)
-        calendar_group.add(self.password_row)
 
         self.calendar_status_label = Gtk.Label(xalign=0, wrap=True)
         calendar_group.add(self.calendar_status_label)
 
-        calendar_save_button = Gtk.Button(label="Save", halign=Gtk.Align.END)
-        calendar_save_button.add_css_class("suggested-action")
-        calendar_save_button.connect("clicked", self.on_calendar_save)
-        calendar_group.add(calendar_save_button)
+        calendar_button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8, halign=Gtk.Align.END)
+        self.connect_button = Gtk.Button(label="Connect Google Calendar")
+        self.connect_button.add_css_class("suggested-action")
+        self.connect_button.connect("clicked", self.on_connect_clicked)
+        calendar_button_row.append(self.connect_button)
+
+        self.disconnect_button = Gtk.Button(label="Disconnect")
+        self.disconnect_button.connect("clicked", self.on_disconnect_clicked)
+        calendar_button_row.append(self.disconnect_button)
+
+        calendar_group.add(calendar_button_row)
 
         calendar_page.add(calendar_group)
         self.add(calendar_page)
+
+        self._refresh_calendar_status()
+
+    def _refresh_calendar_status(self):
+        connected = bool(keyring.lookup_google_refresh_token())
+        self.calendar_status_label.set_label("Connected." if connected else "Not connected.")
+        self.disconnect_button.set_sensitive(connected)
+
+    def on_connect_clicked(self, _button):
+        self.connect_button.set_sensitive(False)
+        self.calendar_status_label.set_label("Waiting for you to finish signing in in your browser…")
+        google_calendar.connect(self.on_google_connected)
+
+    def on_google_connected(self, refresh_token, error):
+        self.connect_button.set_sensitive(True)
+        if error:
+            self.calendar_status_label.set_label(f"Couldn't connect: {error}")
+            return
+        keyring.store_google_refresh_token(refresh_token)
+        self._refresh_calendar_status()
+        self.on_calendar_changed()
+
+    def on_disconnect_clicked(self, _button):
+        keyring.clear_google_refresh_token()
+        self._refresh_calendar_status()
+        self.on_calendar_changed()
 
     def on_weather_save(self, _button):
         self.config["location"] = self.location_row.get_text().strip()
         self.config["units"] = "fahrenheit" if self.units_row.get_selected() == 0 else "celsius"
         self.save_config(self.config)
         self.on_weather_changed()
-
-    def on_calendar_save(self, _button):
-        server = self.server_row.get_text().strip()
-        username = self.username_row.get_text().strip()
-        password = self.password_row.get_text()
-        self.config["caldav_server"] = server
-        self.config["caldav_username"] = username
-        self.save_config(self.config)
-        if password:
-            try:
-                keyring.store_password(server, username, password)
-            except GLib.Error as e:
-                self.calendar_status_label.set_label(f"Couldn't save password: {e}")
-                return
-        self.calendar_status_label.set_label("Saved.")
-        self.on_calendar_changed()

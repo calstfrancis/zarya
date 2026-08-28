@@ -2,7 +2,6 @@ import datetime
 import json
 import sys
 import threading
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import gi
@@ -12,9 +11,9 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import backup_status, calendar_source, keyring, weather
+from . import backup_status, google_calendar, keyring, weather
 from .preferences import PreferencesWindow
-from .weather_chart import WeatherChart
+from .weather_table import WeatherTable
 
 APP_ID = "io.github.calstfrancis.zarya"
 
@@ -157,47 +156,31 @@ class ZaryaWindow(Adw.ApplicationWindow):
         root_box.append(result_box)
 
         # --- Weather ---
-        weather_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        self.weather_summary_label = Gtk.Label(xalign=0, hexpand=True, wrap=True)
+        weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.weather_summary_label = Gtk.Label(xalign=0, wrap=True)
         self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
-        weather_header.append(self.weather_summary_label)
-        weather_refresh_button = Gtk.Button(icon_name="view-refresh-symbolic")
-        weather_refresh_button.set_tooltip_text("Refresh weather")
-        weather_refresh_button.connect("clicked", lambda *_: self.fetch_weather())
-        weather_header.append(weather_refresh_button)
-        root_box.append(weather_header)
-
-        self.weather_chart = WeatherChart()
-        self.weather_chart.set_visible(False)
-        root_box.append(self.weather_chart)
+        weather_content.append(self.weather_summary_label)
+        self.weather_table = WeatherTable()
+        self.weather_table.set_visible(False)
+        weather_content.append(self.weather_table)
+        weather_expander, self.weather_status_icon = self._make_section(
+            "weather", "Weather", weather_content, self.fetch_weather
+        )
+        root_box.append(weather_expander)
 
         # --- Backups ---
-        backup_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        backup_title = Gtk.Label(label="Backups", xalign=0, hexpand=True)
-        backup_title.add_css_class("heading")
-        backup_header.append(backup_title)
-        backup_refresh_button = Gtk.Button(icon_name="view-refresh-symbolic")
-        backup_refresh_button.set_tooltip_text("Refresh backup status")
-        backup_refresh_button.connect("clicked", lambda *_: self.fetch_backups())
-        backup_header.append(backup_refresh_button)
-        root_box.append(backup_header)
-
         self.backup_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        root_box.append(self.backup_box)
+        backup_expander, self.backup_status_icon = self._make_section(
+            "backups", "Backups", self.backup_box, self.fetch_backups
+        )
+        root_box.append(backup_expander)
 
         # --- Today's events ---
-        events_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        events_title = Gtk.Label(label="Today's Events", xalign=0, hexpand=True)
-        events_title.add_css_class("heading")
-        events_header.append(events_title)
-        events_refresh_button = Gtk.Button(icon_name="view-refresh-symbolic")
-        events_refresh_button.set_tooltip_text("Refresh events")
-        events_refresh_button.connect("clicked", lambda *_: self.fetch_events())
-        events_header.append(events_refresh_button)
-        root_box.append(events_header)
-
         self.events_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        root_box.append(self.events_box)
+        events_expander, self.events_status_icon = self._make_section(
+            "events", "Today's Events", self.events_box, self.fetch_events
+        )
+        root_box.append(events_expander)
 
         # --- Update log ---
         scrolled = Gtk.ScrolledWindow(vexpand=True)
@@ -251,8 +234,48 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if self.config.get("location"):
             self.fetch_weather()
         self.fetch_backups()
-        if self.config.get("caldav_server") and self.config.get("caldav_username"):
+        if keyring.lookup_google_refresh_token():
             self.fetch_events()
+        else:
+            self._set_box_message(self.events_box, "Connect Google Calendar in Preferences to see today's events.")
+
+    def _make_section(self, key, title, content, on_refresh):
+        status_icon = Gtk.Image()
+        status_icon.set_pixel_size(16)
+
+        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        title_label = Gtk.Label(label=title, xalign=0, hexpand=True)
+        title_label.add_css_class("heading")
+        header_box.append(title_label)
+        header_box.append(status_icon)
+        refresh_button = Gtk.Button(icon_name="view-refresh-symbolic", has_frame=False)
+        refresh_button.set_tooltip_text(f"Refresh {title.lower()}")
+        refresh_button.connect("clicked", lambda *_: on_refresh())
+        header_box.append(refresh_button)
+
+        expander = Gtk.Expander()
+        expander.set_label_widget(header_box)
+        expander.set_child(content)
+        expander.set_expanded(self.config.get(f"{key}_expanded", True))
+        expander.connect("notify::expanded", self._on_section_toggled, key)
+        return expander, status_icon
+
+    def _on_section_toggled(self, expander, _pspec, key):
+        self.config[f"{key}_expanded"] = expander.get_expanded()
+        save_config(self.config)
+
+    @staticmethod
+    def _set_status_icon(icon, kind):
+        icon.remove_css_class("success")
+        icon.remove_css_class("error")
+        if kind == "ok":
+            icon.set_from_icon_name("emblem-ok-symbolic")
+            icon.add_css_class("success")
+        elif kind == "error":
+            icon.set_from_icon_name("dialog-error-symbolic")
+            icon.add_css_class("error")
+        else:
+            icon.set_from_icon_name(None)
 
     # --- menu ---
 
@@ -284,7 +307,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         location = self.config.get("location", "").strip()
         if not location:
             self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
-            self.weather_chart.set_visible(False)
+            self.weather_table.set_visible(False)
+            self._set_status_icon(self.weather_status_icon, "neutral")
             return
         self.weather_summary_label.set_label(f"Loading weather for {location}…")
 
@@ -302,12 +326,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def on_weather_error(self, message):
         self.weather_summary_label.set_label(f"Couldn't get weather: {message}")
-        self.weather_chart.set_visible(False)
+        self.weather_table.set_visible(False)
+        self._set_status_icon(self.weather_status_icon, "error")
         return False
 
     def on_weather_ready(self, data):
         self.weather_data = data
-        self.weather_chart.set_visible(True)
+        self.weather_table.set_visible(True)
+        self._set_status_icon(self.weather_status_icon, "ok")
         self.render_weather()
         return False
 
@@ -328,7 +354,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             unit_letter = "C"
         desc = weather.describe(d["code"])
         self.weather_summary_label.set_label(f"{d['label']}: {desc}, {hi}°{unit_letter} / {lo}°{unit_letter}")
-        self.weather_chart.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
+        self.weather_table.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
 
     # --- backups ---
 
@@ -339,10 +365,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def on_backup_status(self, jobs, error):
         if error is not None:
             self._set_box_message(self.backup_box, f"Couldn't check backup status: {error}")
+            self._set_status_icon(self.backup_status_icon, "error")
             return
         if not jobs:
             self._set_box_message(self.backup_box, "No Pereprava jobs configured.")
+            self._set_status_icon(self.backup_status_icon, "neutral")
             return
+        any_failed = any(job.get("state") == "failed" for job in jobs)
+        self._set_status_icon(self.backup_status_icon, "error" if any_failed else "ok")
         self._clear_box(self.backup_box)
         for job in jobs:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -373,21 +403,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
     # --- calendar ---
 
     def fetch_events(self):
-        server = self.config.get("caldav_server", "").strip()
-        username = self.config.get("caldav_username", "").strip()
-        if not server or not username:
-            self._set_box_message(self.events_box, "Set up a calendar in Preferences to see today's events.")
-            return
-        password = keyring.lookup_password(server, username)
-        if not password:
-            self._set_box_message(self.events_box, "No saved calendar password — check Preferences.")
+        refresh_token = keyring.lookup_google_refresh_token()
+        if not refresh_token:
+            self._set_box_message(self.events_box, "Connect Google Calendar in Preferences to see today's events.")
+            self._set_status_icon(self.events_status_icon, "neutral")
             return
         self._set_box_message(self.events_box, "Loading today's events…")
 
         def worker():
             try:
-                events = calendar_source.fetch_today_events(server, username, password)
-            except (OSError, ET.ParseError, ValueError) as e:
+                events = google_calendar.fetch_today_events(refresh_token)
+            except (OSError, ValueError, KeyError) as e:
                 GLib.idle_add(self.on_events_error, str(e))
                 return
             GLib.idle_add(self.on_events_ready, events)
@@ -396,9 +422,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def on_events_error(self, message):
         self._set_box_message(self.events_box, f"Couldn't load events: {message}")
+        self._set_status_icon(self.events_status_icon, "error")
         return False
 
     def on_events_ready(self, events):
+        self._set_status_icon(self.events_status_icon, "ok")
         if not events:
             self._set_box_message(self.events_box, "No events today.")
             return False

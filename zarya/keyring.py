@@ -4,25 +4,23 @@ gi.require_version("Secret", "1")
 
 from gi.repository import Secret
 
-_SCHEMA = Secret.Schema.new(
-    "io.github.calstfrancis.zarya.caldav",
+_GOOGLE_SCHEMA = Secret.Schema.new(
+    "io.github.calstfrancis.zarya.google_calendar",
     Secret.SchemaFlags.NONE,
-    {
-        "server": Secret.SchemaAttributeType.STRING,
-        "username": Secret.SchemaAttributeType.STRING,
-    },
+    {"account": Secret.SchemaAttributeType.STRING},
 )
 
 
-def store_password(server, username, password):
-    attributes = {"server": server, "username": username}
+def store_google_refresh_token(refresh_token, account="default"):
     Secret.password_store_sync(
-        _SCHEMA, attributes, Secret.COLLECTION_DEFAULT,
-        f"Zarya CalDAV password ({username}@{server})",
-        password, None,
+        _GOOGLE_SCHEMA, {"account": account}, Secret.COLLECTION_DEFAULT,
+        "Zarya Google Calendar refresh token", refresh_token, None,
     )
 
 
-def lookup_password(server, username):
-    attributes = {"server": server, "username": username}
-    return Secret.password_lookup_sync(_SCHEMA, attributes, None)
+def lookup_google_refresh_token(account="default"):
+    return Secret.password_lookup_sync(_GOOGLE_SCHEMA, {"account": account}, None)
+
+
+def clear_google_refresh_token(account="default"):
+    Secret.password_clear_sync(_GOOGLE_SCHEMA, {"account": account}, None)

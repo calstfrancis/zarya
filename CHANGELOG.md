@@ -23,7 +23,15 @@
   colored label), persisted across restarts, not just shown during a run.
 - Added a Backups section: reads Pereprava's job definitions and queries
   `systemctl --user` (via flatpak-spawn --host) for each job's last result.
-- Added a Today's Events section: reads events directly from a CalDAV
-  server (e.g. Disroot) via a calendar-query REPORT with server-side
-  recurrence expansion; the app password is stored in the system keyring
-  (libsecret/KWallet), not in plaintext config.
+- Added a Today's Events section, backed by Google Calendar (not CalDAV —
+  Google dropped app-password CalDAV access). Uses an OAuth2 loopback flow
+  (PKCE, no client secret exposed in the redirect) via Preferences > Calendar
+  > "Connect Google Calendar"; only a read-only refresh token is stored, in
+  the system keyring, never the password itself.
+- Replaced the hourly weather line chart with a plain numbers table (hour /
+  temp / humidity / rain %, current hour highlighted) — the line chart
+  looked nice but wasn't actually usable at a glance.
+- Weather, Backups, and Today's Events are now collapsible sections (click
+  the header to fold/unfold, state persisted), each with a status icon in
+  the header: a check if everything's fine, an error mark if a fetch failed
+  or (for Backups) any job's last run failed.
