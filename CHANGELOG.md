@@ -15,3 +15,15 @@
 - Added a daily weather report: hourly temperature, humidity, and
   precipitation-probability charts for a configurable location (Open-Meteo,
   no API key), with a hover crosshair and a °F/°C toggle.
+- Moved weather location/units into a proper Preferences window, reachable
+  from a hamburger menu in the header bar — fixes weather silently never
+  showing anything, which turned out to be the inline location field only
+  taking effect on Enter, with no visible confirmation that it had.
+- Added a clear success/failure status row for the last update run (icon +
+  colored label), persisted across restarts, not just shown during a run.
+- Added a Backups section: reads Pereprava's job definitions and queries
+  `systemctl --user` (via flatpak-spawn --host) for each job's last result.
+- Added a Today's Events section: reads events directly from a CalDAV
+  server (e.g. Disroot) via a calendar-query REPORT with server-side
+  recurrence expansion; the app password is stored in the system keyring
+  (libsecret/KWallet), not in plaintext config.

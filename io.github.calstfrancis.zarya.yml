@@ -12,6 +12,7 @@ finish-args:
   - --talk-name=org.freedesktop.Flatpak
   - --filesystem=xdg-config/autostart:create
   - --share=network
+  - --talk-name=org.freedesktop.secrets
 
 modules:
   - name: zarya
