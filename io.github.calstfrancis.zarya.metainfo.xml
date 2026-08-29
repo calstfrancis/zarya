@@ -39,6 +39,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.7.0" date="2026-08-29">
+      <description>
+        <p>
+          "Steel Dawn". A System Health section next to Backups: disk space
+          and drive SMART status, read from UDisks2 without needing root or
+          a password prompt.
+        </p>
+      </description>
+    </release>
     <release version="0.6.0" date="2026-08-29">
       <description>
         <p>

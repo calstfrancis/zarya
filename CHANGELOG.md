@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.0] — dev
+## [0.7.0] "Steel Dawn" — System Health section (disk space + SMART)
 
 - Added a System Health section (next to Backups): disk space for each real
   mounted filesystem (via the same flatpak-spawn --host approach as

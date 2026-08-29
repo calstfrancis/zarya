@@ -1,5 +1,20 @@
 # Release Notes
 
+## [0.7.0] "Steel Dawn" — System Health section (disk space + SMART)
+
+### Added
+
+- A System Health section, next to Backups: disk space for each real
+  mounted filesystem, and drive SMART status. SMART reads UDisks2's cached
+  properties over the system D-Bus rather than shelling out to `smartctl`
+  (which needs root) — no password prompt, just accurate health data.
+  Handles both ATA and NVMe drives.
+
+### Fixed
+
+- A small pre-existing dead-code bug in `_format_backup_time`, left over
+  from an earlier refactor.
+
 ## [0.6.0] "Gathered Dawn" — multiple Google calendars
 
 ### Added
