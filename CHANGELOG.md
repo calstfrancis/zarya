@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.0] — dev
+## [0.5.0] "Coral Sync" — to-do sidebar synced with Google Tasks
 
 - The to-do sidebar is now synced with Google Tasks instead of stored
   locally — add/check-off/remove all go through the real Google Tasks API

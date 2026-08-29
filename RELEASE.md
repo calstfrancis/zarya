@@ -1,5 +1,27 @@
 # Release Notes
 
+## [0.5.0] "Coral Sync" — to-do sidebar synced with Google Tasks
+
+### Added
+
+- The to-do sidebar is now backed by real Google Tasks (`@default` list)
+  instead of local storage — add/check-off/remove all sync for real, and
+  tasks show up in the Google Tasks app and Gmail too.
+- One Google connection now covers both Calendar and Tasks — a single,
+  widened-scope consent instead of two separate connect flows. Preferences'
+  "Calendar" page is renamed "Google"; "Connect Google Calendar" is now
+  "Connect Google Account".
+
+### Requires external setup
+
+- The Google Tasks API needs to be enabled on the Google Cloud project
+  (console.cloud.google.com/apis/library/tasks.googleapis.com — not "Cloud
+  Tasks API", a different, unrelated product), and the `tasks` scope added
+  to the OAuth consent screen.
+- Anyone already connected needs to disconnect and reconnect once in
+  Preferences to pick up the wider scope — the old token doesn't cover
+  Tasks calls.
+
 ## [0.4.0] "Quiet Ember" — system tray icon, hourly weather refresh
 
 ### Added

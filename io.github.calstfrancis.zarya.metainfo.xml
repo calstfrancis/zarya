@@ -38,6 +38,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.5.0" date="2026-08-29">
+      <description>
+        <p>
+          "Coral Sync". The to-do sidebar now syncs with real Google Tasks
+          instead of local storage — one Google connection covers both
+          Calendar and Tasks. Preferences' "Calendar" page is renamed
+          "Google".
+        </p>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-08-29">
       <description>
         <p>
