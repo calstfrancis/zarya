@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.0] — dev
+## [0.6.0] "Gathered Dawn" — multiple Google calendars
 
 - Today's Events now supports multiple Google calendars — Preferences >
   Google lists every calendar on your account (checkboxes, fetched live),

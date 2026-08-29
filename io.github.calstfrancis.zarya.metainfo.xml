@@ -20,7 +20,7 @@
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
       <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the Air Quality Health Index</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
-      <li>Today's Google Calendar events and due dates</li>
+      <li>Today's events from any combination of your Google calendars</li>
       <li>A persistent to-do sidebar synced with Google Tasks</li>
       <li>Desktop notification, run history, and a "Preview" dry-run before committing to a real update</li>
       <li>System tray icon; optional autostart at login runs quietly in the background instead of opening a window</li>
@@ -38,6 +38,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.6.0" date="2026-08-29">
+      <description>
+        <p>
+          "Gathered Dawn". Today's Events now supports multiple Google
+          calendars — Preferences > Google lists every calendar on your
+          account and lets you pick any combination.
+        </p>
+      </description>
+    </release>
     <release version="0.5.0" date="2026-08-29">
       <description>
         <p>

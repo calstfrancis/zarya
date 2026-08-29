@@ -1,5 +1,15 @@
 # Release Notes
 
+## [0.6.0] "Gathered Dawn" — multiple Google calendars
+
+### Added
+
+- Today's Events supports multiple Google calendars — Preferences > Google
+  lists every calendar on your account as checkboxes (fetched live) and
+  merges events across whichever ones you select. Defaults to just your
+  primary calendar. A calendar that fails to fetch (removed, unshared) is
+  skipped rather than failing the whole section.
+
 ## [0.5.0] "Coral Sync" — to-do sidebar synced with Google Tasks
 
 ### Added
