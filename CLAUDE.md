@@ -43,6 +43,7 @@ Single source of truth: `version` in `pyproject.toml`, mirrored in `zarya/__init
 | `zarya/weather_alerts.py` | Environment Canada active alerts (ECCC MSC GeoMet OGC API, `weather-alerts` collection), bbox-around-point query |
 | `zarya/weather_aqhi.py` | Environment Canada current AQHI — nearest `aqhi-stations` point, then `aqhi-observations-realtime` filtered by `location_id`+`latest=true` |
 | `zarya/backup_status.py` | Reads Pereprava's job JSON + `systemctl --user` status via one embedded Python script run through `flatpak-spawn --host python3 -c ...` |
+| `zarya/system_health.py` | Disk space (`flatpak-spawn --host`, same reasoning as backups) + drive SMART health via UDisks2 over the **system** D-Bus (`--system-talk-name`, not the usual session-bus `--talk-name`) — read-only, no root/pkexec needed, unlike `smartctl` |
 | `zarya/google_calendar.py` | OAuth2 + PKCE loopback flow (shared by Calendar and Tasks), `get_access_token()` (public, reused by `google_tasks.py`), `list_calendars()` + multi-calendar `fetch_today_events()` — stdlib only, no Google client libraries |
 | `zarya/google_tasks.py` | Google Tasks API v1 CRUD (`@default` list) — list/add/set-done/delete, reuses `google_calendar.get_access_token()` |
 | `zarya/todo_sidebar.py` | `TodoSidebar` — persistent right-side panel, backed entirely by Google Tasks (no local storage); shows a connect prompt when not connected |

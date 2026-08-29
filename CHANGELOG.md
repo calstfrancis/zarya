@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0] — dev
+
+- Added a System Health section (next to Backups): disk space for each real
+  mounted filesystem (via the same flatpak-spawn --host approach as
+  everything else that needs host state — the sandbox's own "/" is the
+  runtime image, not the host disk), and drive health via UDisks2's cached
+  SMART properties over the system D-Bus. Deliberately doesn't shell out to
+  `smartctl` — that needs root for raw device access, and prompting for a
+  password just to display a health icon would be bad UX; UDisks2 (which
+  already runs as root on the host) exposes the same cached SMART data
+  read-only to any user. Handles both ATA (SmartFailing) and NVMe
+  (SmartCriticalWarning) drives. Verified against this machine's real NVMe
+  drive before considering it done, not just unit-tested.
+
 ## [0.6.0] "Gathered Dawn" — multiple Google calendars
 
 - Today's Events now supports multiple Google calendars — Preferences >

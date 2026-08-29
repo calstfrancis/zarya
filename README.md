@@ -11,6 +11,8 @@ weather, your backup status, and today's calendar events — all in one window.
   humidity/rain table, styled with the Fondwave palette
 - Backup status read from [Pereprava](https://github.com/calstfrancis/pereprava)'s
   rclone/rsync jobs, with a button to open it directly
+- System Health: disk space and drive SMART status (via UDisks2, no root
+  needed to read it)
 - Today's Google Calendar events, and a persistent to-do sidebar synced with
   Google Tasks — one OAuth2 + PKCE connection covers both; only a refresh
   token is stored, in the system keyring

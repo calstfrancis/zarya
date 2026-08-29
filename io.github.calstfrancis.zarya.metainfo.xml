@@ -20,6 +20,7 @@
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
       <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the Air Quality Health Index</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
+      <li>System Health: disk space and drive SMART status</li>
       <li>Today's events from any combination of your Google calendars</li>
       <li>A persistent to-do sidebar synced with Google Tasks</li>
       <li>Desktop notification, run history, and a "Preview" dry-run before committing to a real update</li>

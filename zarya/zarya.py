@@ -12,7 +12,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import __version__, backup_status, changelog, google_calendar, keyring, styles, tray, weather, weather_alerts, weather_aqhi
+from . import __version__, backup_status, changelog, google_calendar, keyring, styles, system_health, tray, weather, weather_alerts, weather_aqhi
 from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
 from .todo_sidebar import TodoSidebar
@@ -285,6 +285,13 @@ class ZaryaWindow(Adw.ApplicationWindow):
         )
         root_box.append(backup_expander)
 
+        # --- System Health ---
+        self.health_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        health_expander, self.health_status_icon = self._make_section(
+            "health", "System Health", self.health_box, self.fetch_system_health,
+        )
+        root_box.append(health_expander)
+
         # --- Today's events ---
         self.events_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         events_expander, self.events_status_icon = self._make_section(
@@ -367,6 +374,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.fetch_weather()
         GLib.timeout_add_seconds(3600, self._on_weather_refresh_timer)
         self.fetch_backups()
+        self.fetch_system_health()
         if keyring.lookup_google_refresh_token():
             self.fetch_events()
         else:
@@ -661,7 +669,110 @@ class ZaryaWindow(Adw.ApplicationWindow):
             return dt.strftime("%Y-%m-%d %H:%M")
         except (OverflowError, OSError, ValueError):
             return None
-        return job.get("last_run_text") or None
+
+    # --- system health ---
+
+    def fetch_system_health(self):
+        self._set_box_message(self.health_box, "Checking system health…")
+        self._set_status_icon(self.health_status_icon, "neutral")
+        self._health_disks = None
+        self._health_disks_error = None
+        self._health_drives = None
+        self._health_drives_error = None
+        system_health.fetch_disk_usage(self._on_disk_usage_ready)
+        threading.Thread(target=self._fetch_smart_health_worker, daemon=True).start()
+
+    def _fetch_smart_health_worker(self):
+        try:
+            drives = system_health.fetch_smart_health()
+        except GLib.Error as e:
+            GLib.idle_add(self._on_smart_health_ready, None, str(e))
+            return
+        GLib.idle_add(self._on_smart_health_ready, drives, None)
+
+    def _on_disk_usage_ready(self, disks, error):
+        self._health_disks = disks if disks is not None else []
+        self._health_disks_error = error
+        self._render_system_health()
+        return False
+
+    def _on_smart_health_ready(self, drives, error):
+        self._health_drives = drives if drives is not None else []
+        self._health_drives_error = error
+        self._render_system_health()
+        return False
+
+    def _render_system_health(self):
+        disks_done = self._health_disks is not None or self._health_disks_error is not None
+        drives_done = self._health_drives is not None or self._health_drives_error is not None
+        if not (disks_done and drives_done):
+            return
+
+        self._clear_box(self.health_box)
+        any_problem = False
+        any_row = False
+
+        if self._health_disks_error:
+            error_label = Gtk.Label(label=f"Couldn't check disk space: {self._health_disks_error}", xalign=0, wrap=True)
+            error_label.add_css_class("dim-label")
+            self.health_box.append(error_label)
+        else:
+            for disk in self._health_disks:
+                any_row = True
+                total, used = disk["total"], disk["used"]
+                pct = (used / total * 100) if total else 0
+                critical = pct >= 95
+                warning = pct >= 85
+                any_problem = any_problem or critical
+                if critical:
+                    icon_name, css_class = "dialog-error-symbolic", "error"
+                elif warning:
+                    icon_name, css_class = "dialog-warning-symbolic", "warning"
+                else:
+                    icon_name, css_class = "drive-harddisk-symbolic", "dim-label"
+                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                icon = Gtk.Image(icon_name=icon_name)
+                icon.add_css_class(css_class)
+                row.append(icon)
+                label = Gtk.Label(
+                    label=f"{disk['path']} — {self._format_bytes(used)} / {self._format_bytes(total)} ({pct:.0f}%)",
+                    xalign=0, hexpand=True,
+                )
+                row.append(label)
+                self.health_box.append(row)
+
+        if self._health_drives_error:
+            error_label = Gtk.Label(label=f"Couldn't check drive health: {self._health_drives_error}", xalign=0, wrap=True)
+            error_label.add_css_class("dim-label")
+            self.health_box.append(error_label)
+        else:
+            for drive in self._health_drives:
+                any_row = True
+                any_problem = any_problem or not drive["healthy"]
+                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                icon = Gtk.Image(icon_name="emblem-ok-symbolic" if drive["healthy"] else "dialog-error-symbolic")
+                icon.add_css_class("success" if drive["healthy"] else "error")
+                row.append(icon)
+                label = Gtk.Label(label=f"{drive['model']} — {drive['detail']}", xalign=0, hexpand=True)
+                row.append(label)
+                self.health_box.append(row)
+
+        if not any_row and not self._health_disks_error and not self._health_drives_error:
+            self._set_box_message(self.health_box, "No disk or drive health data available.")
+
+        if self._health_disks_error or self._health_drives_error:
+            self._set_status_icon(self.health_status_icon, "error" if any_problem else "neutral")
+        else:
+            self._set_status_icon(self.health_status_icon, "error" if any_problem else "ok")
+
+    @staticmethod
+    def _format_bytes(n):
+        value = float(n)
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if value < 1024 or unit == "TB":
+                return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+            value /= 1024
+        return f"{value:.1f} TB"
 
     # --- calendar ---
 
