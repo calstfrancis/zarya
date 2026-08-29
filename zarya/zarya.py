@@ -12,7 +12,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import __version__, backup_status, changelog, google_calendar, keyring, styles, weather, weather_alerts, weather_aqhi
+from . import __version__, backup_status, changelog, google_calendar, keyring, styles, tray, weather, weather_alerts, weather_aqhi
 from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
 from .todo_sidebar import TodoSidebar
@@ -20,11 +20,15 @@ from .weather_table import WeatherTable
 
 APP_ID = "io.github.calstfrancis.zarya"
 
+# --background: launched from the autostart entry, not by the user directly —
+# stay hidden in the tray and only run the update/fetches, rather than
+# popping a window open at every login. A manual `flatpak run` (no flag)
+# still opens the window immediately, same as always.
 AUTOSTART_CONTENT = f"""[Desktop Entry]
 Type=Application
 Name=Zarya
 Comment=Runs system and flatpak updates at login
-Exec=flatpak run {APP_ID}
+Exec=flatpak run {APP_ID} --background
 Icon={APP_ID}
 X-Flatpak={APP_ID}
 NoDisplay=true
@@ -173,6 +177,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.proc = None
         self.weather_data = None
         self.config = load_config()
+        self.quitting = False
+        self.tray = tray.TrayIcon(APP_ID, self.on_tray_activate)
+        self.connect("close-request", self.on_close_request)
 
         toolbar_view = Adw.ToolbarView()
         header = Adw.HeaderBar()
@@ -199,6 +206,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
         about_button.get_child().set_halign(Gtk.Align.START)
         about_button.connect("clicked", self.on_about_clicked)
         menu_box.append(about_button)
+        quit_button = Gtk.Button(label="Quit Zarya", has_frame=False)
+        quit_button.set_halign(Gtk.Align.FILL)
+        quit_button.get_child().set_halign(Gtk.Align.START)
+        quit_button.connect("clicked", self.on_quit_clicked)
+        menu_box.append(quit_button)
         self.menu_popover.set_child(menu_box)
         menu_button.set_popover(self.menu_popover)
         header.pack_end(menu_button)
@@ -331,7 +343,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.cancel_button.connect("clicked", self.on_cancel_clicked)
         button_row.append(self.cancel_button)
 
-        close_button = Gtk.Button(label="Close")
+        close_button = Gtk.Button(label="Hide to Tray")
+        close_button.set_tooltip_text("Keeps running in the tray — use Quit Zarya (menu) to exit completely")
         close_button.connect("clicked", lambda *_: self.close())
         button_row.append(close_button)
 
@@ -352,6 +365,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.refresh_status()
         if self.config.get("location"):
             self.fetch_weather()
+        GLib.timeout_add_seconds(3600, self._on_weather_refresh_timer)
         self.fetch_backups()
         if keyring.lookup_google_refresh_token():
             self.fetch_events()
@@ -400,6 +414,28 @@ class ZaryaWindow(Adw.ApplicationWindow):
         else:
             icon.set_from_icon_name(None)
 
+    # --- tray / window lifecycle ---
+
+    def on_tray_activate(self):
+        if self.get_visible():
+            self.set_visible(False)
+        else:
+            self.present()
+
+    def on_close_request(self, _window):
+        if self.quitting or not self.tray.registered:
+            # No tray icon available (unsupported desktop) — closing the
+            # window is the only way out, so let it actually quit rather
+            # than hiding an unreachable window forever.
+            return False
+        self.set_visible(False)
+        return True
+
+    def on_quit_clicked(self, _button):
+        self.menu_popover.popdown()
+        self.quitting = True
+        self.get_application().quit()
+
     # --- menu ---
 
     def on_preferences_clicked(self, _button):
@@ -444,6 +480,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         window.present()
 
     # --- weather ---
+
+    def _on_weather_refresh_timer(self):
+        self.fetch_weather()
+        return True
 
     def fetch_weather(self):
         location = self.config.get("location", "").strip()
@@ -946,23 +986,39 @@ class ZaryaApplication(Adw.Application):
     def __init__(self):
         super().__init__(application_id=APP_ID)
         self.window = None
+        self.start_hidden = False
+        self.add_main_option(
+            "background", 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE,
+            "Start hidden in the tray (used by the autostart entry)", None,
+        )
+        self.connect("handle-local-options", self._on_handle_local_options)
+
+    def _on_handle_local_options(self, _app, options):
+        self.start_hidden = options.contains("background")
+        return -1
 
     def do_activate(self):
         first_launch = self.window is None
         if first_launch:
             styles.apply()
+            self.hold()
             self.window = ZaryaWindow(self)
-        self.window.present()
-        if first_launch:
+            if not self.start_hidden:
+                self.window.present()
             if self.window.config.get("onboarded"):
                 if not self.window.already_ran_today():
                     GLib.idle_add(self.window.start_updates)
             else:
+                # Silent first-run setup doesn't make sense — show it
+                # regardless of --background.
+                self.window.present()
                 onboarding = OnboardingWindow(
                     self.window, self.window.config, save_config,
                     on_finished=self.on_onboarding_finished,
                 )
                 onboarding.present()
+        else:
+            self.window.present()
 
     def on_onboarding_finished(self):
         self.window.fetch_weather()

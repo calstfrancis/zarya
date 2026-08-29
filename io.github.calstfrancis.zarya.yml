@@ -13,6 +13,7 @@ finish-args:
   - --filesystem=xdg-config/autostart:create
   - --share=network
   - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.kde.StatusNotifierWatcher
 
 modules:
   - name: zarya

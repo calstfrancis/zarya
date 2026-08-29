@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0] — dev
+
+- Added a real system tray icon, talking directly to the StatusNotifierItem/
+  StatusNotifierWatcher D-Bus protocol (the actual mechanism underneath
+  libappindicator — no new library or flatpak module needed; verified it
+  registers with the real KDE watcher before wiring it into the app).
+  Launching from the autostart entry now starts hidden in the tray (a new
+  `--background` flag) instead of always popping a window open — closing
+  the window (or the new "Hide to Tray" button, renamed from "Close") hides
+  it rather than quitting; a "Quit Zarya" menu item actually exits. Click
+  the tray icon to show/hide the window. Degrades gracefully to normal
+  window behavior on desktops with no tray watcher running.
+- Weather (including alerts and AQHI) now auto-refreshes every hour, not
+  just on open/manual refresh.
+
 ## [0.3.0] "Amber Watch" — weather alerts, AQHI, a real Cancel fix
 
 - Added Environment Canada weather alerts to the Weather panel — active
