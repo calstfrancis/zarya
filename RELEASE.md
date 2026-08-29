@@ -1,5 +1,20 @@
 # Release Notes
 
+## [0.4.0] "Quiet Ember" — system tray icon, hourly weather refresh
+
+### Added
+
+- A real system tray icon, talking directly to the StatusNotifierItem/
+  StatusNotifierWatcher D-Bus protocol — the mechanism underneath
+  libappindicator, with no new library or flatpak module needed. Degrades
+  gracefully to normal window behavior if no tray watcher is running.
+- Launching from the autostart entry (`--background`) now starts hidden in
+  the tray and runs the update/fetches silently, instead of always opening
+  a window at login. Closing the window ("Hide to Tray") hides it instead
+  of quitting; a new "Quit Zarya" menu item is the real way to exit. Click
+  the tray icon to show/hide the window.
+- Weather (including alerts and AQHI) now auto-refreshes every hour.
+
 ## [0.3.0] "Amber Watch" — weather alerts, AQHI, a real Cancel fix
 
 ### Added

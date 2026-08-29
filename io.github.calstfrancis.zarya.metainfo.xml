@@ -23,7 +23,7 @@
       <li>Today's Google Calendar events and due dates</li>
       <li>A persistent to-do sidebar</li>
       <li>Desktop notification, run history, and a "Preview" dry-run before committing to a real update</li>
-      <li>Optional autostart at login</li>
+      <li>System tray icon; optional autostart at login runs quietly in the background instead of opening a window</li>
     </ul>
   </description>
 
@@ -38,6 +38,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.4.0" date="2026-08-29">
+      <description>
+        <p>
+          "Quiet Ember". A real system tray icon — launching at login now
+          starts hidden in the tray and runs quietly instead of always
+          opening a window; click the tray icon to show it, "Quit Zarya"
+          to actually exit. Weather (including alerts and air quality)
+          now auto-refreshes every hour.
+        </p>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-08-28">
       <description>
         <p>

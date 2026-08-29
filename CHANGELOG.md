@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.0] — dev
+## [0.4.0] "Quiet Ember" — system tray icon, hourly weather refresh
 
 - Added a real system tray icon, talking directly to the StatusNotifierItem/
   StatusNotifierWatcher D-Bus protocol (the actual mechanism underneath
