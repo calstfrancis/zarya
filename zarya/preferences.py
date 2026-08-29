@@ -9,13 +9,13 @@ from . import google_calendar, keyring
 
 
 class PreferencesWindow(Adw.PreferencesWindow):
-    def __init__(self, parent, config, save_config, on_weather_changed, on_units_changed, on_calendar_changed):
+    def __init__(self, parent, config, save_config, on_weather_changed, on_units_changed, on_google_changed):
         super().__init__(transient_for=parent, modal=True)
         self.config = config
         self.save_config = save_config
         self.on_weather_changed = on_weather_changed
         self.on_units_changed = on_units_changed
-        self.on_calendar_changed = on_calendar_changed
+        self.on_google_changed = on_google_changed
 
         weather_page = Adw.PreferencesPage(title="Weather", icon_name="weather-clear-symbolic")
         weather_group = Adw.PreferencesGroup(title="Location")
@@ -38,17 +38,17 @@ class PreferencesWindow(Adw.PreferencesWindow):
         weather_page.add(weather_group)
         self.add(weather_page)
 
-        calendar_page = Adw.PreferencesPage(title="Calendar", icon_name="x-office-calendar-symbolic")
+        calendar_page = Adw.PreferencesPage(title="Google", icon_name="x-office-calendar-symbolic")
         calendar_group = Adw.PreferencesGroup(
-            title="Google Calendar",
-            description="Opens your browser to sign in; only a read-only refresh token is stored, in the system keyring.",
+            title="Google Account",
+            description="Opens your browser to sign in. Covers both today's Calendar events and the to-do sidebar (Google Tasks). The refresh token is stored in the system keyring, never the password.",
         )
 
         self.calendar_status_label = Gtk.Label(xalign=0, wrap=True)
         calendar_group.add(self.calendar_status_label)
 
         calendar_button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8, halign=Gtk.Align.END)
-        self.connect_button = Gtk.Button(label="Connect Google Calendar")
+        self.connect_button = Gtk.Button(label="Connect Google Account")
         self.connect_button.add_css_class("suggested-action")
         self.connect_button.connect("clicked", self.on_connect_clicked)
         calendar_button_row.append(self.connect_button)
@@ -85,12 +85,12 @@ class PreferencesWindow(Adw.PreferencesWindow):
             self.calendar_status_label.set_label(f"Couldn't save to system keyring: {e}")
             return
         self._refresh_calendar_status()
-        self.on_calendar_changed()
+        self.on_google_changed()
 
     def on_disconnect_clicked(self, _button):
         keyring.clear_google_refresh_token()
         self._refresh_calendar_status()
-        self.on_calendar_changed()
+        self.on_google_changed()
 
     def on_weather_save(self, _button):
         old_location = self.config.get("location", "")

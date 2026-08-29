@@ -21,7 +21,7 @@
       <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the Air Quality Health Index</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
       <li>Today's Google Calendar events and due dates</li>
-      <li>A persistent to-do sidebar</li>
+      <li>A persistent to-do sidebar synced with Google Tasks</li>
       <li>Desktop notification, run history, and a "Preview" dry-run before committing to a real update</li>
       <li>System tray icon; optional autostart at login runs quietly in the background instead of opening a window</li>
     </ul>

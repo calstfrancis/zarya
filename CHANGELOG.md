@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0] — dev
+
+- The to-do sidebar is now synced with Google Tasks instead of stored
+  locally — add/check-off/remove all go through the real Google Tasks API
+  (`@default` list), so it shows up in the Google Tasks app and Gmail too.
+  One Google connection now covers both Calendar and Tasks (widened OAuth
+  scope, single consent). Preferences' "Calendar" page is renamed "Google";
+  the connect button now reads "Connect Google Account".
+  **Needs the Tasks API enabled on the Google Cloud project (same step as
+  Calendar was) and the `tasks` scope added to the consent screen** —
+  external action, not something this commit can do. Anyone already
+  connected needs to disconnect and reconnect once to pick up the wider
+  scope; the old token doesn't cover Tasks calls and they'll fail until then.
+
 ## [0.4.0] "Quiet Ember" — system tray icon, hourly weather refresh
 
 - Added a real system tray icon, talking directly to the StatusNotifierItem/

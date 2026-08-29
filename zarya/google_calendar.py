@@ -14,7 +14,7 @@ from gi.repository import Gio, GLib
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
-SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
+SCOPE = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks"
 
 # From the Google Cloud OAuth client (type "Desktop app") set up for Zarya.
 # Not secret in the confidential sense — Google issues a client_secret even
@@ -120,7 +120,7 @@ def _exchange_code(code, verifier, redirect_uri):
     return refresh_token
 
 
-def _get_access_token(refresh_token):
+def get_access_token(refresh_token):
     result = _post_form(TOKEN_URL, {
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
@@ -140,7 +140,7 @@ def _parse_rfc3339(value):
 
 
 def fetch_today_events(refresh_token):
-    access_token = _get_access_token(refresh_token)
+    access_token = get_access_token(refresh_token)
     today = datetime.date.today()
     time_min = datetime.datetime.combine(today, datetime.time.min).astimezone().isoformat()
     time_max = datetime.datetime.combine(today, datetime.time.max).astimezone().isoformat()

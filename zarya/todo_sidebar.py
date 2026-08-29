@@ -1,11 +1,14 @@
+import threading
+
 from gi.repository import GLib, Gtk
+
+from . import google_tasks, keyring
 
 
 class TodoSidebar(Gtk.Box):
-    def __init__(self, config, save_config):
+    def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        self.config = config
-        self.save_config = save_config
+        self.tasks = []
         self.set_size_request(240, -1)
         self.set_margin_top(12)
         self.set_margin_bottom(12)
@@ -19,19 +22,30 @@ class TodoSidebar(Gtk.Box):
         card.add_css_class("fondwave-terminal")
         card.add_css_class("card")
 
-        title = Gtk.Label(label="To-Do", xalign=0)
+        header_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        title = Gtk.Label(label="To-Do", xalign=0, hexpand=True)
         title.add_css_class("title-4")
-        card.append(title)
+        header_row.append(title)
+        refresh_button = Gtk.Button(icon_name="view-refresh-symbolic", has_frame=False)
+        refresh_button.set_tooltip_text("Refresh tasks")
+        refresh_button.connect("clicked", lambda *_: self.fetch_tasks())
+        header_row.append(refresh_button)
+        card.append(header_row)
 
         entry_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.entry = Gtk.Entry(placeholder_text="Add a task…", hexpand=True)
         self.entry.connect("activate", self.on_add)
         entry_row.append(self.entry)
-        add_button = Gtk.Button(icon_name="list-add-symbolic", has_frame=False)
-        add_button.set_tooltip_text("Add task")
-        add_button.connect("clicked", self.on_add)
-        entry_row.append(add_button)
+        self.add_button = Gtk.Button(icon_name="list-add-symbolic", has_frame=False)
+        self.add_button.set_tooltip_text("Add task")
+        self.add_button.connect("clicked", self.on_add)
+        entry_row.append(self.add_button)
         card.append(entry_row)
+
+        self.status_label = Gtk.Label(xalign=0, wrap=True)
+        self.status_label.add_css_class("dim-label")
+        self.status_label.set_visible(False)
+        card.append(self.status_label)
 
         scroller = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
         self.list_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -39,35 +53,122 @@ class TodoSidebar(Gtk.Box):
         card.append(scroller)
 
         self.append(card)
-        self.render()
+        self.fetch_tasks()
 
-    def _todos(self):
-        return self.config.setdefault("todos", [])
+    @staticmethod
+    def _refresh_token():
+        return keyring.lookup_google_refresh_token()
+
+    def fetch_tasks(self):
+        refresh_token = self._refresh_token()
+        if not refresh_token:
+            self.tasks = []
+            self.entry.set_sensitive(False)
+            self.add_button.set_sensitive(False)
+            self._set_status("Connect your Google Account in Preferences to sync tasks.")
+            self.render()
+            return
+        self.entry.set_sensitive(True)
+        self.add_button.set_sensitive(True)
+        self._set_status("Loading tasks…")
+
+        def worker():
+            try:
+                tasks = google_tasks.list_tasks(refresh_token)
+            except (OSError, ValueError, KeyError) as e:
+                GLib.idle_add(self._on_fetch_error, str(e))
+                return
+            GLib.idle_add(self._on_fetch_ready, tasks)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_fetch_error(self, message):
+        self._set_status(f"Couldn't load tasks: {message}")
+        return False
+
+    def _on_fetch_ready(self, tasks):
+        self.tasks = tasks
+        self._set_status(None)
+        self.render()
+        return False
+
+    def _set_status(self, message):
+        if message:
+            self.status_label.set_label(message)
+            self.status_label.set_visible(True)
+        else:
+            self.status_label.set_visible(False)
 
     def on_add(self, _widget):
         text = self.entry.get_text().strip()
         if not text:
             return
-        self._todos().append({"text": text, "done": False})
-        self.save_config(self.config)
+        refresh_token = self._refresh_token()
+        if not refresh_token:
+            return
+        self.entry.set_sensitive(False)
+        self.add_button.set_sensitive(False)
+
+        def worker():
+            try:
+                task = google_tasks.add_task(refresh_token, text)
+            except (OSError, ValueError, KeyError) as e:
+                GLib.idle_add(self._on_add_error, str(e))
+                return
+            GLib.idle_add(self._on_add_ready, task)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_add_error(self, message):
+        self.entry.set_sensitive(True)
+        self.add_button.set_sensitive(True)
+        self._set_status(f"Couldn't add task: {message}")
+        return False
+
+    def _on_add_ready(self, task):
         self.entry.set_text("")
+        self.entry.set_sensitive(True)
+        self.add_button.set_sensitive(True)
+        self.tasks.append(task)
+        self._set_status(None)
+        self.render()
+        return False
+
+    def on_toggle(self, check_button, task):
+        refresh_token = self._refresh_token()
+        if not refresh_token:
+            return
+        done = check_button.get_active()
+        task["done"] = done
         self.render()
 
-    def on_toggle(self, check_button, index):
-        todos = self._todos()
-        if index >= len(todos):
+        def worker():
+            try:
+                google_tasks.set_task_done(refresh_token, task["id"], done)
+            except (OSError, ValueError, KeyError) as e:
+                GLib.idle_add(self._on_mutation_error, str(e))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def on_remove(self, task):
+        refresh_token = self._refresh_token()
+        if not refresh_token:
             return
-        todos[index]["done"] = check_button.get_active()
-        self.save_config(self.config)
+        self.tasks = [t for t in self.tasks if t["id"] != task["id"]]
         self.render()
 
-    def on_remove(self, index):
-        todos = self._todos()
-        if index >= len(todos):
-            return
-        todos.pop(index)
-        self.save_config(self.config)
-        self.render()
+        def worker():
+            try:
+                google_tasks.delete_task(refresh_token, task["id"])
+            except (OSError, ValueError, KeyError) as e:
+                GLib.idle_add(self._on_mutation_error, str(e))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_mutation_error(self, message):
+        self._set_status(f"Sync error: {message} — refreshing…")
+        self.fetch_tasks()
+        return False
 
     def render(self):
         child = self.list_box.get_first_child()
@@ -76,24 +177,24 @@ class TodoSidebar(Gtk.Box):
             self.list_box.remove(child)
             child = next_child
 
-        todos = self._todos()
-        if not todos:
-            empty_label = Gtk.Label(label="No tasks yet — add one above.", xalign=0, wrap=True)
-            empty_label.add_css_class("dim-label")
-            self.list_box.append(empty_label)
+        if not self.tasks:
+            if self._refresh_token():
+                empty_label = Gtk.Label(label="No tasks yet — add one above.", xalign=0, wrap=True)
+                empty_label.add_css_class("dim-label")
+                self.list_box.append(empty_label)
             return
 
-        for index, item in enumerate(todos):
+        for task in self.tasks:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
 
-            check = Gtk.CheckButton(active=item.get("done", False))
-            check.set_tooltip_text("Mark not done" if item.get("done") else "Mark done")
-            check.connect("toggled", self.on_toggle, index)
+            check = Gtk.CheckButton(active=task.get("done", False))
+            check.set_tooltip_text("Mark not done" if task.get("done") else "Mark done")
+            check.connect("toggled", self.on_toggle, task)
             row.append(check)
 
-            text = item.get("text", "")
+            text = task.get("text", "")
             label = Gtk.Label(xalign=0, hexpand=True, wrap=True)
-            if item.get("done"):
+            if task.get("done"):
                 label.add_css_class("dim-label")
                 label.set_markup(f"<s>{GLib.markup_escape_text(text)}</s>")
             else:
@@ -102,7 +203,7 @@ class TodoSidebar(Gtk.Box):
 
             remove_button = Gtk.Button(icon_name="edit-delete-symbolic", has_frame=False)
             remove_button.set_tooltip_text("Remove")
-            remove_button.connect("clicked", lambda _b, i=index: self.on_remove(i))
+            remove_button.connect("clicked", lambda _b, t=task: self.on_remove(t))
             row.append(remove_button)
 
             self.list_box.append(row)

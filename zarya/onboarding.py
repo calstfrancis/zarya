@@ -65,8 +65,9 @@ class OnboardingWindow(Adw.Window):
         box.append(title)
         subtitle = Gtk.Label(
             label="A couple of quick things to set up — your city for the weather report, "
-                  "and Google Calendar if you'd like today's events on the dashboard. "
-                  "Both are optional and can be changed later in Preferences.",
+                  "and your Google Account if you'd like today's events and a synced "
+                  "to-do list on the dashboard. Both are optional and can be changed "
+                  "later in Preferences.",
             wrap=True, justify=Gtk.Justification.CENTER,
         )
         subtitle.add_css_class("dim-label")
@@ -99,17 +100,17 @@ class OnboardingWindow(Adw.Window):
             orientation=Gtk.Orientation.VERTICAL, spacing=12, valign=Gtk.Align.CENTER,
             margin_top=24, margin_bottom=24, margin_start=24, margin_end=24,
         )
-        title = Gtk.Label(label="Google Calendar")
+        title = Gtk.Label(label="Google Account")
         title.add_css_class("title-2")
         box.append(title)
         subtitle = Gtk.Label(
-            label="Connect it to see today's events on the dashboard. Only a read-only "
-                  "token is stored, in your system keyring.",
+            label="Connect it to see today's Calendar events and sync the to-do sidebar "
+                  "with Google Tasks. Only a refresh token is stored, in your system keyring.",
             wrap=True, justify=Gtk.Justification.CENTER,
         )
         subtitle.add_css_class("dim-label")
         box.append(subtitle)
-        self.connect_button = Gtk.Button(label="Connect Google Calendar", halign=Gtk.Align.CENTER)
+        self.connect_button = Gtk.Button(label="Connect Google Account", halign=Gtk.Align.CENTER)
         self.connect_button.add_css_class("pill")
         self.connect_button.connect("clicked", self.on_connect_clicked)
         box.append(self.connect_button)

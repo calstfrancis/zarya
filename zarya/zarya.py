@@ -356,7 +356,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.toast_overlay.set_hexpand(True)
         main_hbox.append(self.toast_overlay)
         main_hbox.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
-        self.todo_sidebar = TodoSidebar(self.config, save_config)
+        self.todo_sidebar = TodoSidebar()
         main_hbox.append(self.todo_sidebar)
 
         toolbar_view.set_content(main_hbox)
@@ -370,7 +370,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if keyring.lookup_google_refresh_token():
             self.fetch_events()
         else:
-            self._set_box_message(self.events_box, "Connect Google Calendar in Preferences to see today's events.")
+            self._set_box_message(self.events_box, "Connect your Google Account in Preferences to see today's events.")
 
     def _make_section(self, key, title, content, on_refresh=None, extra_button=None, show_icon=True):
         status_icon = Gtk.Image()
@@ -444,9 +444,13 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self, self.config, save_config,
             on_weather_changed=self.fetch_weather,
             on_units_changed=self.render_weather,
-            on_calendar_changed=self.fetch_events,
+            on_google_changed=self.on_google_account_changed,
         )
         prefs.present()
+
+    def on_google_account_changed(self):
+        self.fetch_events()
+        self.todo_sidebar.fetch_tasks()
 
     def on_about_clicked(self, _button):
         self.menu_popover.popdown()
@@ -664,7 +668,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def fetch_events(self):
         refresh_token = keyring.lookup_google_refresh_token()
         if not refresh_token:
-            self._set_box_message(self.events_box, "Connect Google Calendar in Preferences to see today's events.")
+            self._set_box_message(self.events_box, "Connect your Google Account in Preferences to see today's events.")
             self._set_status_icon(self.events_status_icon, "neutral")
             return
         self._set_box_message(self.events_box, "Loading today's events…")
@@ -1023,6 +1027,7 @@ class ZaryaApplication(Adw.Application):
     def on_onboarding_finished(self):
         self.window.fetch_weather()
         self.window.fetch_events()
+        self.window.todo_sidebar.fetch_tasks()
         if not self.window.already_ran_today():
             GLib.idle_add(self.window.start_updates)
 
