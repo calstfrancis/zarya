@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import threading
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -13,7 +14,7 @@ from gi.repository import Gio, GLib
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
-EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+CALENDAR_LIST_URL = "https://www.googleapis.com/calendar/v3/users/me/calendarList"
 SCOPE = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks"
 
 # From the Google Cloud OAuth client (type "Desktop app") set up for Zarya.
@@ -139,7 +140,27 @@ def _parse_rfc3339(value):
     return datetime.datetime.fromisoformat(value).astimezone().replace(tzinfo=None)
 
 
-def fetch_today_events(refresh_token):
+def list_calendars(refresh_token):
+    access_token = get_access_token(refresh_token)
+    req = urllib.request.Request(CALENDAR_LIST_URL)
+    req.add_header("Authorization", f"Bearer {access_token}")
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.load(resp)
+    calendars = [
+        {
+            "id": item["id"],
+            "summary": item.get("summary", item["id"]),
+            "primary": item.get("primary", False),
+        }
+        for item in data.get("items", [])
+    ]
+    calendars.sort(key=lambda c: (not c["primary"], c["summary"].lower()))
+    return calendars
+
+
+def fetch_today_events(refresh_token, calendar_ids=None):
+    if not calendar_ids:
+        calendar_ids = ["primary"]
     access_token = get_access_token(refresh_token)
     today = datetime.date.today()
     time_min = datetime.datetime.combine(today, datetime.time.min).astimezone().isoformat()
@@ -150,28 +171,36 @@ def fetch_today_events(refresh_token):
         "singleEvents": "true",
         "orderBy": "startTime",
     }
-    url = f"{EVENTS_URL}?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url)
-    req.add_header("Authorization", f"Bearer {access_token}")
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        data = json.load(resp)
 
     events = []
-    for item in data.get("items", []):
-        start_info = item.get("start", {})
-        end_info = item.get("end", {})
-        if "date" in start_info:
-            start = datetime.datetime.strptime(start_info["date"], "%Y-%m-%d")
-            all_day = True
-        else:
-            start = _parse_rfc3339(start_info.get("dateTime"))
-            all_day = False
-        end = _parse_rfc3339(end_info.get("dateTime")) if "dateTime" in end_info else None
-        events.append({
-            "summary": item.get("summary", "(untitled)"),
-            "start": start,
-            "end": end,
-            "all_day": all_day,
-        })
+    for calendar_id in calendar_ids:
+        events_url = f"https://www.googleapis.com/calendar/v3/calendars/{urllib.parse.quote(calendar_id, safe='')}/events"
+        url = f"{events_url}?{urllib.parse.urlencode(params)}"
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", f"Bearer {access_token}")
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.load(resp)
+        except urllib.error.HTTPError:
+            # A calendar that's since been removed/unshared, etc. — skip it
+            # rather than failing the whole fetch over one bad calendar.
+            continue
+
+        for item in data.get("items", []):
+            start_info = item.get("start", {})
+            end_info = item.get("end", {})
+            if "date" in start_info:
+                start = datetime.datetime.strptime(start_info["date"], "%Y-%m-%d")
+                all_day = True
+            else:
+                start = _parse_rfc3339(start_info.get("dateTime"))
+                all_day = False
+            end = _parse_rfc3339(end_info.get("dateTime")) if "dateTime" in end_info else None
+            events.append({
+                "summary": item.get("summary", "(untitled)"),
+                "start": start,
+                "end": end,
+                "all_day": all_day,
+            })
     events.sort(key=lambda e: e["start"])
     return events

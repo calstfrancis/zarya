@@ -675,7 +675,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         def worker():
             try:
-                events = google_calendar.fetch_today_events(refresh_token)
+                events = google_calendar.fetch_today_events(refresh_token, self.config.get("calendar_ids"))
             except (OSError, ValueError, KeyError) as e:
                 GLib.idle_add(self.on_events_error, str(e))
                 return

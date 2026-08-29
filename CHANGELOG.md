@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0] — dev
+
+- Today's Events now supports multiple Google calendars — Preferences >
+  Google lists every calendar on your account (checkboxes, fetched live),
+  and you can select any combination. Defaults to just your primary
+  calendar. A calendar that fails to fetch (removed, unshared) is skipped
+  rather than failing the whole section.
+
 ## [0.5.0] "Coral Sync" — to-do sidebar synced with Google Tasks
 
 - The to-do sidebar is now synced with Google Tasks instead of stored

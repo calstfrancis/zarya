@@ -1,9 +1,11 @@
+import threading
+
 import gi
 
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 from . import google_calendar, keyring
 
@@ -60,9 +62,19 @@ class PreferencesWindow(Adw.PreferencesWindow):
         calendar_group.add(calendar_button_row)
 
         calendar_page.add(calendar_group)
+
+        self.calendars_group = Adw.PreferencesGroup(
+            title="Calendars",
+            description="Choose which calendars show up in Today's Events.",
+        )
+        self.calendars_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.calendars_group.add(self.calendars_box)
+        calendar_page.add(self.calendars_group)
+
         self.add(calendar_page)
 
         self._refresh_calendar_status()
+        self._refresh_calendars_list()
 
     def _refresh_calendar_status(self):
         connected = bool(keyring.lookup_google_refresh_token())
@@ -85,12 +97,69 @@ class PreferencesWindow(Adw.PreferencesWindow):
             self.calendar_status_label.set_label(f"Couldn't save to system keyring: {e}")
             return
         self._refresh_calendar_status()
+        self._refresh_calendars_list()
         self.on_google_changed()
 
     def on_disconnect_clicked(self, _button):
         keyring.clear_google_refresh_token()
         self._refresh_calendar_status()
+        self._refresh_calendars_list()
         self.on_google_changed()
+
+    def _refresh_calendars_list(self):
+        self._clear_box(self.calendars_box)
+        refresh_token = keyring.lookup_google_refresh_token()
+        if not refresh_token:
+            self.calendars_group.set_visible(False)
+            return
+        self.calendars_group.set_visible(True)
+        loading_label = Gtk.Label(label="Loading calendars…", xalign=0)
+        loading_label.add_css_class("dim-label")
+        self.calendars_box.append(loading_label)
+
+        def worker():
+            try:
+                calendars = google_calendar.list_calendars(refresh_token)
+            except (OSError, ValueError, KeyError) as e:
+                GLib.idle_add(self._on_calendars_error, str(e))
+                return
+            GLib.idle_add(self._on_calendars_ready, calendars)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_calendars_error(self, message):
+        self._clear_box(self.calendars_box)
+        error_label = Gtk.Label(label=f"Couldn't load calendars: {message}", xalign=0, wrap=True)
+        error_label.add_css_class("dim-label")
+        self.calendars_box.append(error_label)
+        return False
+
+    def _on_calendars_ready(self, calendars):
+        self._clear_box(self.calendars_box)
+        selected_ids = set(self.config.get("calendar_ids") or ["primary"])
+        for calendar in calendars:
+            check = Gtk.CheckButton(label=calendar["summary"], active=calendar["id"] in selected_ids)
+            check.connect("toggled", self._on_calendar_toggled, calendar["id"])
+            self.calendars_box.append(check)
+        return False
+
+    def _on_calendar_toggled(self, check_button, calendar_id):
+        selected = set(self.config.get("calendar_ids") or ["primary"])
+        if check_button.get_active():
+            selected.add(calendar_id)
+        else:
+            selected.discard(calendar_id)
+        self.config["calendar_ids"] = sorted(selected)
+        self.save_config(self.config)
+        self.on_google_changed()
+
+    @staticmethod
+    def _clear_box(box):
+        child = box.get_first_child()
+        while child is not None:
+            next_child = child.get_next_sibling()
+            box.remove(child)
+            child = next_child
 
     def on_weather_save(self, _button):
         old_location = self.config.get("location", "")
