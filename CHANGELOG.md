@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1] — dev
+
+- Fixed: the About window and `pyproject.toml` attributed the app to
+  "Praxis" (a stale template placeholder) instead of Cal — now says
+  "calstfrancis" throughout.
+
 ## [0.7.0] "Steel Dawn" — System Health section (disk space + SMART)
 
 - Added a System Health section (next to Backups): disk space for each real

@@ -467,11 +467,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
             application_name="Zarya",
             application_icon=APP_ID,
             version=__version__,
-            developer_name="Praxis",
+            developer_name="calstfrancis",
             license_type=Gtk.License.GPL_3_0,
             website="https://github.com/calstfrancis/zarya",
             comments="A morning dashboard: system updates, weather, backup status, and today's events.",
-            copyright="© 2026 Praxis",
+            copyright="© 2026 calstfrancis",
         )
         about.present()
 
