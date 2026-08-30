@@ -1,5 +1,21 @@
 # Release Notes
 
+## [0.8.0] "Steady Charge" — battery health
+
+### Added
+
+- Battery health in the System Health section, same treatment as drive
+  SMART status: reads UPower's `Capacity` property (the real wear
+  percentage) plus charge level and cycle count, over the system D-Bus —
+  no root, no password prompt. Skipped entirely on desktops with no
+  battery, not treated as an error.
+
+### Fixed
+
+- The About window and `pyproject.toml` attributed the app to "Praxis" (a
+  stale template placeholder) instead of Cal — now says "calstfrancis"
+  throughout.
+
 ## [0.7.0] "Steel Dawn" — System Health section (disk space + SMART)
 
 ### Added

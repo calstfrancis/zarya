@@ -20,7 +20,7 @@
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
       <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the Air Quality Health Index</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
-      <li>System Health: disk space and drive SMART status</li>
+      <li>System Health: disk space, drive SMART status, and battery health</li>
       <li>Today's events from any combination of your Google calendars</li>
       <li>A persistent to-do sidebar synced with Google Tasks</li>
       <li>Desktop notification, run history, and a "Preview" dry-run before committing to a real update</li>
@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.8.0" date="2026-08-29">
+      <description>
+        <p>
+          "Steady Charge". Battery health in the System Health section —
+          charge level, wear percentage, and cycle count, read from UPower
+          with no root needed. Also fixes a stale "Praxis" attribution in
+          the About window.
+        </p>
+      </description>
+    </release>
     <release version="0.7.0" date="2026-08-29">
       <description>
         <p>

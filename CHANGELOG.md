@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.0] — dev
+## [0.8.0] "Steady Charge" — battery health
 
 - Added battery health to the System Health section, same treatment as
   drive SMART status: reads UPower's `Capacity` property (already the
