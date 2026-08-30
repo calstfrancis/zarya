@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.2] — dev
+## [0.9.2] "Clear Order" — dashboard reorder, remove Preview
 
 - Reordered the dashboard: Weather is now first, followed by Today's
   Events & Due Dates, System Health, Backups, then the "already updated

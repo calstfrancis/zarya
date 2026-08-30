@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.9.2" date="2026-08-30">
+      <description>
+        <p>
+          "Clear Order". Reordered the dashboard — Weather, Today's Events
+          &amp; Due Dates, System Health, then Backups, with the
+          "already updated today" status moved down above the Update Log.
+          Removed the Preview (dry-run) button.
+        </p>
+      </description>
+    </release>
     <release version="0.9.1" date="2026-08-30">
       <description>
         <p>

@@ -1,5 +1,14 @@
 # Release Notes
 
+## [0.9.2] "Clear Order" — dashboard reorder, remove Preview
+
+### Changed
+
+- New section order: Weather, Today's Events & Due Dates, System Health,
+  Backups, then the "already updated today" status area moved from the
+  very top down to sit directly above the Update Log.
+- Removed the Preview (zypper dry-run) button.
+
 ## [0.9.1] "True Reading" — fix the AQI number itself
 
 ### Fixed
