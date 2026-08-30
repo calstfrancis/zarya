@@ -71,8 +71,7 @@ class WeatherTable(Gtk.Box):
             for label in (hour_label, temp_label, humidity_label, precip_label):
                 label.set_width_chars(4)
                 if is_now:
-                    label.add_css_class("accent")
-                    label.add_css_class("heading")
+                    label.add_css_class("now-hour")
 
             self.data_grid.attach(hour_label, i, 0, 1, 1)
             self.data_grid.attach(temp_label, i, 1, 1, 1)

@@ -43,7 +43,37 @@ FONDWAVE_CSS = f"""
 .fondwave-card label.error {{ color: #FF6B6B; font-weight: 700; }}
 .fondwave-card scrollbar {{ opacity: 0.6; }}
 
+/* Color-coded AQI badges — a pill per Canada's AQHI tier, not just the
+   generic accent/warning/error trio, so Low/Moderate/High/Very High each
+   read as a genuinely different color at a glance. */
+.fondwave-card label.aqhi-low {{
+  background-color: #4CAF50; color: #FFFFFF; font-weight: 800;
+  border-radius: 999px; padding: 2px 10px;
+}}
+.fondwave-card label.aqhi-moderate {{
+  background-color: #FBC02D; color: {NIGHT_INDIGO}; font-weight: 800;
+  border-radius: 999px; padding: 2px 10px;
+}}
+.fondwave-card label.aqhi-high {{
+  background-color: #F57C00; color: #FFFFFF; font-weight: 800;
+  border-radius: 999px; padding: 2px 10px;
+}}
+.fondwave-card label.aqhi-very-high {{
+  background-color: #B71C1C; color: #FFFFFF; font-weight: 800;
+  border-radius: 999px; padding: 2px 10px;
+}}
+
 .weather-figures label {{ font-feature-settings: "tnum"; }}
+
+/* The current-hour column in the weather table — a filled pill, not just
+   bold text, so "now" actually stands out while scanning the row. */
+.fondwave-card label.now-hour {{
+  background-color: rgba(255, 255, 255, 0.28);
+  color: {IVORY_DAWN};
+  font-weight: 800;
+  border-radius: 6px;
+  padding: 1px 5px;
+}}
 
 .fondwave-terminal, .fondwave-terminal textview, .fondwave-terminal textview text {{
   background-color: {TERMINAL_BG};

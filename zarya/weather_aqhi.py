@@ -61,10 +61,13 @@ def fetch_current_aqhi(lat, lon):
 
 def _category(value):
     # Canada's official AQHI scale: 1-3 Low, 4-6 Moderate, 7-10 High, 10+ Very High.
+    # css_class picks a distinct colored badge per tier (see styles.py's
+    # .aqhi-* rules), not just the generic accent/warning/error trio, so the
+    # four tiers actually read as four different colors, not two.
     if value <= 3:
-        return "Low", "accent"
+        return "Low", "aqhi-low"
     if value <= 6:
-        return "Moderate", "warning"
+        return "Moderate", "aqhi-moderate"
     if value <= 10:
-        return "High", "error"
-    return "Very High", "error"
+        return "High", "aqhi-high"
+    return "Very High", "aqhi-very-high"

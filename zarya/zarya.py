@@ -259,7 +259,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         weather_top_row.append(self.weather_current_label)
         weather_content.append(weather_top_row)
 
-        self.weather_aqhi_label = Gtk.Label(xalign=1)
+        self.weather_aqhi_label = Gtk.Label(xalign=1, halign=Gtk.Align.END)
         self.weather_aqhi_label.add_css_class("caption")
         weather_content.append(self.weather_aqhi_label)
 
@@ -359,14 +359,22 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         self.toast_overlay.set_child(root_box)
 
-        main_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        self.toast_overlay.set_hexpand(True)
-        main_hbox.append(self.toast_overlay)
-        main_hbox.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
         self.todo_sidebar = TodoSidebar()
-        main_hbox.append(self.todo_sidebar)
 
-        toolbar_view.set_content(main_hbox)
+        main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True)
+        main_paned.set_start_child(self.toast_overlay)
+        main_paned.set_resize_start_child(True)
+        main_paned.set_shrink_start_child(False)
+        main_paned.set_end_child(self.todo_sidebar)
+        main_paned.set_resize_end_child(False)
+        main_paned.set_shrink_end_child(False)
+        main_paned.set_position(self.config.get("sidebar_paned_position", 700))
+        self._paned_ready = False
+        GLib.timeout_add(500, self._on_paned_ready)
+        main_paned.connect("notify::position", self._on_paned_position_changed)
+        self._paned_save_timeout = None
+
+        toolbar_view.set_content(main_paned)
         self.set_content(toolbar_view)
 
         self.refresh_status()
@@ -421,6 +429,31 @@ class ZaryaWindow(Adw.ApplicationWindow):
             icon.add_css_class("error")
         else:
             icon.set_from_icon_name(None)
+
+    # --- sidebar paned ---
+
+    def _on_paned_ready(self):
+        # Setting the initial position programmatically also fires
+        # notify::position — ignore events until the window's had a moment
+        # to actually lay out, so that initial pass never gets persisted
+        # back into config as if the user had dragged it.
+        self._paned_ready = True
+        return False
+
+    def _on_paned_position_changed(self, paned, _pspec):
+        if not self._paned_ready:
+            return
+        if self._paned_save_timeout is not None:
+            GLib.source_remove(self._paned_save_timeout)
+        position = paned.get_position()
+
+        def save():
+            self._paned_save_timeout = None
+            self.config["sidebar_paned_position"] = position
+            save_config(self.config)
+            return False
+
+        self._paned_save_timeout = GLib.timeout_add(400, save)
 
     # --- tray / window lifecycle ---
 
@@ -580,7 +613,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         else:
             self.weather_current_label.set_label("")
 
-        for css_class in ("accent", "warning", "error"):
+        for css_class in ("aqhi-low", "aqhi-moderate", "aqhi-high", "aqhi-very-high"):
             self.weather_aqhi_label.remove_css_class(css_class)
         aqhi = d.get("aqhi")
         if aqhi:

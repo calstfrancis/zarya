@@ -1,3 +1,4 @@
+import html
 import json
 import urllib.parse
 import urllib.request
@@ -24,7 +25,7 @@ def list_tasks(refresh_token):
     url = f"{TASKS_URL}?{urllib.parse.urlencode(params)}"
     data = _request("GET", url, refresh_token)
     tasks = [
-        {"id": item["id"], "text": item.get("title", ""), "done": item.get("status") == "completed"}
+        {"id": item["id"], "text": html.unescape(item.get("title", "")), "done": item.get("status") == "completed"}
         for item in data.get("items", [])
         if item.get("title")
     ]

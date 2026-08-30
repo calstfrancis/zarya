@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0] — dev
+
+- Fixed: event/task titles with apostrophes (and other special characters)
+  showed as literal HTML entities, e.g. "Emma&#39;s Mom's Birthday" instead
+  of "Emma's Mom's Birthday" — Google's Calendar and Tasks APIs return
+  HTML-escaped text in some fields; now decoded via `html.unescape()`.
+- The to-do sidebar is now resizable — a draggable divider (`Gtk.Paned`)
+  instead of a fixed width, position persisted to config (debounced, same
+  pattern as Zerkalo's pane-position handling).
+- The current-hour column in the weather table is now a filled pill, not
+  just bold text — stands out at a glance instead of blending in.
+- Air quality is now a real color-coded badge (green/yellow/orange/red per
+  AQHI tier) instead of plain colored text.
+
 ## [0.8.0] "Steady Charge" — battery health
 
 - Added battery health to the System Health section, same treatment as

@@ -1,6 +1,7 @@
 import base64
 import datetime
 import hashlib
+import html
 import http.server
 import json
 import os
@@ -149,7 +150,7 @@ def list_calendars(refresh_token):
     calendars = [
         {
             "id": item["id"],
-            "summary": item.get("summary", item["id"]),
+            "summary": html.unescape(item.get("summary", item["id"])),
             "primary": item.get("primary", False),
         }
         for item in data.get("items", [])
@@ -197,7 +198,7 @@ def fetch_today_events(refresh_token, calendar_ids=None):
                 all_day = False
             end = _parse_rfc3339(end_info.get("dateTime")) if "dateTime" in end_info else None
             events.append({
-                "summary": item.get("summary", "(untitled)"),
+                "summary": html.unescape(item.get("summary", "(untitled)")),
                 "start": start,
                 "end": end,
                 "all_day": all_day,
