@@ -1,7 +1,13 @@
 # Changelog
 
-## [0.7.1] — dev
+## [0.8.0] — dev
 
+- Added battery health to the System Health section, same treatment as
+  drive SMART status: reads UPower's `Capacity` property (already the
+  wear/health percentage — verified it matches EnergyFull/EnergyFullDesign
+  exactly, no need to compute it) plus charge level and cycle count, over
+  the system D-Bus, no root needed. Skipped entirely (not an error) on
+  desktops with no battery. Verified against this machine's real battery.
 - Fixed: the About window and `pyproject.toml` attributed the app to
   "Praxis" (a stale template placeholder) instead of Cal — now says
   "calstfrancis" throughout.

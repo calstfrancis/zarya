@@ -679,8 +679,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._health_disks_error = None
         self._health_drives = None
         self._health_drives_error = None
+        self._health_batteries = None
+        self._health_batteries_error = None
         system_health.fetch_disk_usage(self._on_disk_usage_ready)
         threading.Thread(target=self._fetch_smart_health_worker, daemon=True).start()
+        threading.Thread(target=self._fetch_battery_health_worker, daemon=True).start()
 
     def _fetch_smart_health_worker(self):
         try:
@@ -689,6 +692,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
             GLib.idle_add(self._on_smart_health_ready, None, str(e))
             return
         GLib.idle_add(self._on_smart_health_ready, drives, None)
+
+    def _fetch_battery_health_worker(self):
+        try:
+            batteries = system_health.fetch_battery_health()
+        except GLib.Error as e:
+            GLib.idle_add(self._on_battery_health_ready, None, str(e))
+            return
+        GLib.idle_add(self._on_battery_health_ready, batteries, None)
 
     def _on_disk_usage_ready(self, disks, error):
         self._health_disks = disks if disks is not None else []
@@ -702,10 +713,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._render_system_health()
         return False
 
+    def _on_battery_health_ready(self, batteries, error):
+        self._health_batteries = batteries if batteries is not None else []
+        self._health_batteries_error = error
+        self._render_system_health()
+        return False
+
     def _render_system_health(self):
         disks_done = self._health_disks is not None or self._health_disks_error is not None
         drives_done = self._health_drives is not None or self._health_drives_error is not None
-        if not (disks_done and drives_done):
+        batteries_done = self._health_batteries is not None or self._health_batteries_error is not None
+        if not (disks_done and drives_done and batteries_done):
             return
 
         self._clear_box(self.health_box)
@@ -757,10 +775,43 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 row.append(label)
                 self.health_box.append(row)
 
-        if not any_row and not self._health_disks_error and not self._health_drives_error:
+        if self._health_batteries_error:
+            error_label = Gtk.Label(label=f"Couldn't check battery health: {self._health_batteries_error}", xalign=0, wrap=True)
+            error_label.add_css_class("dim-label")
+            self.health_box.append(error_label)
+        else:
+            for battery in self._health_batteries:
+                any_row = True
+                capacity = battery.get("capacity")
+                critical = capacity is not None and capacity < 60
+                warning = capacity is not None and capacity < 80
+                any_problem = any_problem or critical
+                if critical:
+                    icon_name, css_class = "dialog-error-symbolic", "error"
+                elif warning:
+                    icon_name, css_class = "dialog-warning-symbolic", "warning"
+                else:
+                    icon_name, css_class = "battery-good-symbolic", "dim-label"
+                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                icon = Gtk.Image(icon_name=icon_name)
+                icon.add_css_class(css_class)
+                row.append(icon)
+                text = f"{battery['model']} — {battery.get('percentage', 0):.0f}% charged"
+                if capacity is not None:
+                    text += f", {capacity:.0f}% battery health"
+                if battery.get("cycles"):
+                    text += f" ({battery['cycles']} cycles)"
+                label = Gtk.Label(label=text, xalign=0, hexpand=True)
+                row.append(label)
+                self.health_box.append(row)
+                # No battery present (most desktops) isn't an error, and
+                # isn't reported at all — nothing meaningful to show.
+
+        if not any_row and not self._health_disks_error and not self._health_drives_error and not self._health_batteries_error:
             self._set_box_message(self.health_box, "No disk or drive health data available.")
 
-        if self._health_disks_error or self._health_drives_error:
+        any_error = self._health_disks_error or self._health_drives_error or self._health_batteries_error
+        if any_error:
             self._set_status_icon(self.health_status_icon, "error" if any_problem else "neutral")
         else:
             self._set_status_icon(self.health_status_icon, "error" if any_problem else "ok")

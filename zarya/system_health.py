@@ -40,6 +40,11 @@ print(json.dumps(results))
 UDISKS_BUS_NAME = "org.freedesktop.UDisks2"
 UDISKS_OBJECT_PATH = "/org/freedesktop/UDisks2"
 
+UPOWER_BUS_NAME = "org.freedesktop.UPower"
+UPOWER_OBJECT_PATH = "/org/freedesktop/UPower"
+UPOWER_DEVICE_IFACE = "org.freedesktop.UPower.Device"
+UPOWER_TYPE_BATTERY = 2
+
 
 def fetch_disk_usage(callback):
     """Runs asynchronously; callback(disks, error) on the main loop with
@@ -108,3 +113,35 @@ def fetch_smart_health():
         # enclosures that don't pass SMART through) are skipped — nothing
         # meaningful to report.
     return drives
+
+
+def fetch_battery_health():
+    """Same treatment as fetch_smart_health(): UPower already runs as root
+    on the host and exposes battery wear (Capacity — verified this equals
+    EnergyFull/EnergyFullDesign already, no need to compute it) read-only
+    over the system bus. Returns [] on desktops with no battery, not an
+    error — that's a normal, common case, not a failure."""
+    bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+    result = bus.call_sync(
+        UPOWER_BUS_NAME, UPOWER_OBJECT_PATH, UPOWER_BUS_NAME, "EnumerateDevices",
+        None, None, Gio.DBusCallFlags.NONE, 10000, None,
+    )
+    (paths,) = result.unpack()
+
+    batteries = []
+    for path in paths:
+        props_result = bus.call_sync(
+            UPOWER_BUS_NAME, path, "org.freedesktop.DBus.Properties", "GetAll",
+            GLib.Variant("(s)", (UPOWER_DEVICE_IFACE,)),
+            None, Gio.DBusCallFlags.NONE, 10000, None,
+        )
+        (props,) = props_result.unpack()
+        if props.get("Type") != UPOWER_TYPE_BATTERY or not props.get("IsPresent"):
+            continue
+        batteries.append({
+            "model": props.get("Model") or "Battery",
+            "capacity": props.get("Capacity"),
+            "percentage": props.get("Percentage"),
+            "cycles": props.get("ChargeCycles"),
+        })
+    return batteries
