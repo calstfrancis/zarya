@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.2] — dev
+
+- Reordered the dashboard: Weather is now first, followed by Today's
+  Events & Due Dates, System Health, Backups, then the "already updated
+  today" status area moved down to sit directly above the Update Log
+  (previously at the very top).
+- Removed the Preview (dry-run) button.
+
 ## [0.9.1] "True Reading" — fix the AQI number itself
 
 - Fixed: the "AQI" badge was actually showing Canada's AQHI (a 1-10 health

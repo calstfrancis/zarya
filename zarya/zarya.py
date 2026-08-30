@@ -226,26 +226,6 @@ class ZaryaWindow(Adw.ApplicationWindow):
             margin_end=12,
         )
 
-        self.status_label = Gtk.Label(xalign=0)
-        self.status_label.add_css_class("title-4")
-        root_box.append(self.status_label)
-
-        result_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        self.result_icon = Gtk.Image()
-        self.result_label = Gtk.Label(xalign=0)
-        result_box.append(self.result_icon)
-        result_box.append(self.result_label)
-        root_box.append(result_box)
-
-        self.history_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        history_caption = Gtk.Label(label="Recent runs:")
-        history_caption.add_css_class("dim-label")
-        history_caption.add_css_class("caption")
-        self.history_row.append(history_caption)
-        self.history_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        self.history_row.append(self.history_box)
-        root_box.append(self.history_row)
-
         # --- Weather ---
         weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         weather_content.add_css_class("fondwave-card")
@@ -274,6 +254,20 @@ class ZaryaWindow(Adw.ApplicationWindow):
         )
         root_box.append(weather_expander)
 
+        # --- Today's events ---
+        self.events_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        events_expander, self.events_status_icon = self._make_section(
+            "events", "Today's Events & Due Dates", self.events_box, self.fetch_events
+        )
+        root_box.append(events_expander)
+
+        # --- System Health ---
+        self.health_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        health_expander, self.health_status_icon = self._make_section(
+            "health", "System Health", self.health_box, self.fetch_system_health,
+        )
+        root_box.append(health_expander)
+
         # --- Backups ---
         self.backup_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         open_pereprava_button = Gtk.Button(icon_name="folder-remote-symbolic", has_frame=False)
@@ -285,19 +279,26 @@ class ZaryaWindow(Adw.ApplicationWindow):
         )
         root_box.append(backup_expander)
 
-        # --- System Health ---
-        self.health_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        health_expander, self.health_status_icon = self._make_section(
-            "health", "System Health", self.health_box, self.fetch_system_health,
-        )
-        root_box.append(health_expander)
+        # --- Already-updated-today status ---
+        self.status_label = Gtk.Label(xalign=0)
+        self.status_label.add_css_class("title-4")
+        root_box.append(self.status_label)
 
-        # --- Today's events ---
-        self.events_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        events_expander, self.events_status_icon = self._make_section(
-            "events", "Today's Events & Due Dates", self.events_box, self.fetch_events
-        )
-        root_box.append(events_expander)
+        result_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.result_icon = Gtk.Image()
+        self.result_label = Gtk.Label(xalign=0)
+        result_box.append(self.result_icon)
+        result_box.append(self.result_label)
+        root_box.append(result_box)
+
+        self.history_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        history_caption = Gtk.Label(label="Recent runs:")
+        history_caption.add_css_class("dim-label")
+        history_caption.add_css_class("caption")
+        self.history_row.append(history_caption)
+        self.history_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        self.history_row.append(self.history_box)
+        root_box.append(self.history_row)
 
         # --- Update log ---
         scrolled = Gtk.ScrolledWindow(vexpand=True)
@@ -333,12 +334,6 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         spacer = Gtk.Box(hexpand=True)
         button_row.append(spacer)
-
-        self.preview_button = Gtk.Button()
-        self.preview_button.set_child(Adw.ButtonContent(icon_name="view-reveal-symbolic", label="Preview"))
-        self.preview_button.set_tooltip_text("Dry-run zypper to see what would change, without installing anything")
-        self.preview_button.connect("clicked", self.on_preview_clicked)
-        button_row.append(self.preview_button)
 
         self.run_button = Gtk.Button(label="Run Now")
         self.run_button.add_css_class("suggested-action")
@@ -1012,27 +1007,6 @@ class ZaryaWindow(Adw.ApplicationWindow):
             return
         self.start_updates()
 
-    def on_preview_clicked(self, _button):
-        if self.proc is not None:
-            return
-        self.buffer.set_text("")
-        self._set_running(True)
-        self.status_label.set_label("Previewing…")
-        self.logline(f"=== Zarya preview: {self.today_str()} ===")
-        self.logline("")
-        self.logline("--- zypper dry-run (nothing will actually be installed) ---")
-        self.run_step(
-            ["flatpak-spawn", "--host", "pkexec", "sh", "-c", "zypper ref && zypper dup --dry-run"],
-            self.on_preview_done,
-        )
-
-    def on_preview_done(self, success, exit_status):
-        self.logline("")
-        self.logline("Preview finished." if success else f"Preview failed (exit status {exit_status}).")
-        self.proc = None
-        self._set_running(False)
-        self.refresh_status()
-
     def on_cancel_clicked(self, _button):
         if self.proc is None:
             return
@@ -1066,7 +1040,6 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def _set_running(self, running):
         self.run_button.set_sensitive(not running)
-        self.preview_button.set_sensitive(not running)
         self.cancel_button.set_sensitive(running)
 
     def start_updates(self):
