@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.0] — dev
+## [0.9.0] "Vivid Dawn" — HTML-entity fix, resizable sidebar, AQI badge
 
 - Fixed: event/task titles with apostrophes (and other special characters)
   showed as literal HTML entities, e.g. "Emma&#39;s Mom's Birthday" instead

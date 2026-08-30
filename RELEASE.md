@@ -1,5 +1,22 @@
 # Release Notes
 
+## [0.9.0] "Vivid Dawn" — HTML-entity fix, resizable sidebar, AQI badge
+
+### Added
+
+- The to-do sidebar is now resizable — a draggable divider instead of a
+  fixed width, position remembered across restarts.
+- Air quality is now a real color-coded badge (green/yellow/orange/red per
+  AQHI tier), and the current-hour column in the weather table is a filled
+  pill instead of just bold text — both stand out at a glance now.
+
+### Fixed
+
+- Event and task titles with apostrophes (and other special characters)
+  showed as literal HTML entities, e.g. "Emma&#39;s Mom's Birthday" —
+  Google's Calendar and Tasks APIs return HTML-escaped text in some
+  fields; now decoded properly.
+
 ## [0.8.0] "Steady Charge" — battery health
 
 ### Added

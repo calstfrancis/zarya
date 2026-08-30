@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.9.0" date="2026-08-30">
+      <description>
+        <p>
+          "Vivid Dawn". A resizable to-do sidebar, a color-coded air-quality
+          badge, a clearer current-hour highlight in the weather table, and
+          a fix for event/task titles showing literal HTML entities (e.g.
+          "Emma&amp;#39;s Mom's Birthday") instead of the real apostrophe.
+        </p>
+      </description>
+    </release>
     <release version="0.8.0" date="2026-08-29">
       <description>
         <p>
