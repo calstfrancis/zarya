@@ -18,7 +18,7 @@
     <ul>
       <li>Runs zypper refresh + dist-upgrade and flatpak update with a single graphical password prompt</li>
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
-      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the Air Quality Health Index</li>
+      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the AQI</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
       <li>System Health: disk space, drive SMART status, and battery health</li>
       <li>Today's events from any combination of your Google calendars</li>
@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.9.1" date="2026-08-30">
+      <description>
+        <p>
+          "True Reading". Fixes the AQI badge — it was showing Canada's
+          AQHI (1-10) instead of the standard AQI (0-500) that other
+          weather apps use, so the number didn't match what you'd see
+          elsewhere. Now uses the real AQI, and works outside Canada too.
+        </p>
+      </description>
+    </release>
     <release version="0.9.0" date="2026-08-30">
       <description>
         <p>

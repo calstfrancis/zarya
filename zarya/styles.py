@@ -43,23 +43,31 @@ FONDWAVE_CSS = f"""
 .fondwave-card label.error {{ color: #FF6B6B; font-weight: 700; }}
 .fondwave-card scrollbar {{ opacity: 0.6; }}
 
-/* Color-coded AQI badges — a pill per Canada's AQHI tier, not just the
-   generic accent/warning/error trio, so Low/Moderate/High/Very High each
-   read as a genuinely different color at a glance. */
-.fondwave-card label.aqhi-low {{
+/* Color-coded AQI badges — the six official US EPA AQI tiers, not just the
+   generic accent/warning/error trio, so each reads as a genuinely
+   different color at a glance. */
+.fondwave-card label.aqi-good {{
   background-color: #4CAF50; color: #FFFFFF; font-weight: 800;
   border-radius: 999px; padding: 2px 10px;
 }}
-.fondwave-card label.aqhi-moderate {{
+.fondwave-card label.aqi-moderate {{
   background-color: #FBC02D; color: {NIGHT_INDIGO}; font-weight: 800;
   border-radius: 999px; padding: 2px 10px;
 }}
-.fondwave-card label.aqhi-high {{
-  background-color: #F57C00; color: #FFFFFF; font-weight: 800;
+.fondwave-card label.aqi-unhealthy-sensitive {{
+  background-color: #FF8F00; color: #FFFFFF; font-weight: 800;
   border-radius: 999px; padding: 2px 10px;
 }}
-.fondwave-card label.aqhi-very-high {{
-  background-color: #B71C1C; color: #FFFFFF; font-weight: 800;
+.fondwave-card label.aqi-unhealthy {{
+  background-color: #E53935; color: #FFFFFF; font-weight: 800;
+  border-radius: 999px; padding: 2px 10px;
+}}
+.fondwave-card label.aqi-very-unhealthy {{
+  background-color: #8E24AA; color: #FFFFFF; font-weight: 800;
+  border-radius: 999px; padding: 2px 10px;
+}}
+.fondwave-card label.aqi-hazardous {{
+  background-color: #6D1B1B; color: #FFFFFF; font-weight: 800;
   border-radius: 999px; padding: 2px 10px;
 }}
 

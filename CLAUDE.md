@@ -4,7 +4,7 @@
 
 A GTK4/libadwaita morning dashboard, flatpak-packaged. Core job: run
 `zypper ref && zypper dup` and `flatpak update` with one graphical password
-prompt. Grew into a small dashboard around that: weather (+ alerts + AQHI),
+prompt. Grew into a small dashboard around that: weather (+ alerts + AQI),
 Pereprava backup status, today's Google Calendar events, and a to-do
 sidebar synced with Google Tasks. Has a real system tray icon and can run
 quietly in the background instead of always opening a window.
@@ -41,7 +41,7 @@ Single source of truth: `version` in `pyproject.toml`, mirrored in `zarya/__init
 | `zarya/weather.py` | Open-Meteo geocoding + hourly forecast + current/apparent temperature fetch, stdlib `urllib` only |
 | `zarya/weather_table.py` | `WeatherTable` — hourly numbers grid (not a chart; see **Weather chart history** below) |
 | `zarya/weather_alerts.py` | Environment Canada active alerts (ECCC MSC GeoMet OGC API, `weather-alerts` collection), bbox-around-point query |
-| `zarya/weather_aqhi.py` | Environment Canada current AQHI — nearest `aqhi-stations` point, then `aqhi-observations-realtime` filtered by `location_id`+`latest=true` |
+| `zarya/weather_aqi.py` | Standard US EPA AQI (0-500) from Open-Meteo's air-quality API — deliberately *not* Canada's AQHI (1-10), which an earlier version used and which confused a real AQI reading (14) for AQHI's very different scale (1) |
 | `zarya/backup_status.py` | Reads Pereprava's job JSON + `systemctl --user` status via one embedded Python script run through `flatpak-spawn --host python3 -c ...` |
 | `zarya/system_health.py` | Disk space (`flatpak-spawn --host`, same reasoning as backups) + drive SMART health (UDisks2) + battery health (UPower's `Capacity` property) — both over the **system** D-Bus (`--system-talk-name`, not the usual session-bus `--talk-name`), read-only, no root/pkexec needed |
 | `zarya/google_calendar.py` | OAuth2 + PKCE loopback flow (shared by Calendar and Tasks), `get_access_token()` (public, reused by `google_tasks.py`), `list_calendars()` + multi-calendar `fetch_today_events()` — stdlib only, no Google client libraries |

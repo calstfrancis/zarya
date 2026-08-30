@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.1] "True Reading" — fix the AQI number itself
+
+- Fixed: the "AQI" badge was actually showing Canada's AQHI (a 1-10 health
+  scale), not the standard AQI (0-500) that every other weather app shows
+  and that a reading like "14 (Low)" is measured on — a value of "1" on the
+  wrong scale looked plausible but meant something completely different.
+  `weather_aqhi.py` → `weather_aqi.py`, now sourced from Open-Meteo's
+  air-quality API (`us_aqi`), which also works globally instead of being
+  Canada-only. Badge now reads e.g. "AQI 59 (Moderate)" with the correct
+  six-tier EPA color scale (green/yellow/orange/red/purple/maroon).
+  Verified against live data before and after the change.
+
 ## [0.9.0] "Vivid Dawn" — HTML-entity fix, resizable sidebar, AQI badge
 
 - Fixed: event/task titles with apostrophes (and other special characters)

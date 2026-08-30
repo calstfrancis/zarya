@@ -12,7 +12,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import __version__, backup_status, changelog, google_calendar, keyring, styles, system_health, tray, weather, weather_alerts, weather_aqhi
+from . import __version__, backup_status, changelog, google_calendar, keyring, styles, system_health, tray, weather, weather_alerts, weather_aqi
 from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
 from .todo_sidebar import TodoSidebar
@@ -259,9 +259,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
         weather_top_row.append(self.weather_current_label)
         weather_content.append(weather_top_row)
 
-        self.weather_aqhi_label = Gtk.Label(xalign=1, halign=Gtk.Align.END)
-        self.weather_aqhi_label.add_css_class("caption")
-        weather_content.append(self.weather_aqhi_label)
+        self.weather_aqi_label = Gtk.Label(xalign=1, halign=Gtk.Align.END)
+        self.weather_aqi_label.add_css_class("caption")
+        weather_content.append(self.weather_aqi_label)
 
         self.alerts_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         weather_content.append(self.alerts_box)
@@ -535,14 +535,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if not location:
             self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
             self.weather_current_label.set_label("")
-            self.weather_aqhi_label.set_label("")
+            self.weather_aqi_label.set_label("")
             self.weather_table.set_visible(False)
             self._clear_box(self.alerts_box)
             self._set_status_icon(self.weather_status_icon, "neutral")
             return
         self.weather_summary_label.set_label(f"Loading weather for {location}…")
         self.weather_current_label.set_label("")
-        self.weather_aqhi_label.set_label("")
+        self.weather_aqi_label.set_label("")
 
         def worker():
             try:
@@ -560,9 +560,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 # top of the core forecast either way, so never block on it.
                 today["alerts"] = []
             try:
-                today["aqhi"] = weather_aqhi.fetch_current_aqhi(lat, lon)
+                today["aqi"] = weather_aqi.fetch_current_aqi(lat, lon)
             except (OSError, ValueError, KeyError):
-                today["aqhi"] = None
+                today["aqi"] = None
             GLib.idle_add(self.on_weather_ready, today)
 
         threading.Thread(target=worker, daemon=True).start()
@@ -570,7 +570,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def on_weather_error(self, message):
         self.weather_summary_label.set_label(f"Couldn't get weather: {message}")
         self.weather_current_label.set_label("")
-        self.weather_aqhi_label.set_label("")
+        self.weather_aqi_label.set_label("")
         self.weather_table.set_visible(False)
         self._clear_box(self.alerts_box)
         self._set_status_icon(self.weather_status_icon, "error")
@@ -613,14 +613,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
         else:
             self.weather_current_label.set_label("")
 
-        for css_class in ("aqhi-low", "aqhi-moderate", "aqhi-high", "aqhi-very-high"):
-            self.weather_aqhi_label.remove_css_class(css_class)
-        aqhi = d.get("aqhi")
-        if aqhi:
-            self.weather_aqhi_label.set_label(f"Air quality: {aqhi['value']:.0f} ({aqhi['category']})")
-            self.weather_aqhi_label.add_css_class(aqhi["css_class"])
+        for css_class in (
+            "aqi-good", "aqi-moderate", "aqi-unhealthy-sensitive",
+            "aqi-unhealthy", "aqi-very-unhealthy", "aqi-hazardous",
+        ):
+            self.weather_aqi_label.remove_css_class(css_class)
+        aqi = d.get("aqi")
+        if aqi:
+            self.weather_aqi_label.set_label(f"AQI {aqi['value']:.0f} ({aqi['category']})")
+            self.weather_aqi_label.add_css_class(aqi["css_class"])
         else:
-            self.weather_aqhi_label.set_label("")
+            self.weather_aqi_label.set_label("")
 
         self.weather_table.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
         self.weather_table.center_on_now()

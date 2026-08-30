@@ -1,5 +1,16 @@
 # Release Notes
 
+## [0.9.1] "True Reading" — fix the AQI number itself
+
+### Fixed
+
+- The "AQI" badge was actually Canada's AQHI (a 1-10 health scale), not the
+  standard 0-500 AQI every other weather app shows — a reading like "1"
+  looked plausible but meant something entirely different from what it
+  claimed to be. Now sourced from Open-Meteo's air-quality API (`us_aqi`),
+  which also works globally instead of being Canada-only, with the correct
+  six-tier EPA color scale.
+
 ## [0.9.0] "Vivid Dawn" — HTML-entity fix, resizable sidebar, AQI badge
 
 ### Added
