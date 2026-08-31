@@ -20,7 +20,7 @@
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
       <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the AQI</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
-      <li>System Health: disk space, drive SMART status, and battery health</li>
+      <li>System Health: disk space, drive SMART status, battery health, and CPU/GPU temperature</li>
       <li>Today's events from any combination of your Google calendars</li>
       <li>A persistent to-do sidebar synced with Google Tasks</li>
       <li>Desktop notification, run history, and a "Preview" dry-run before committing to a real update</li>
@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.10.0" date="2026-08-31">
+      <description>
+        <p>
+          "Cool Dawn". CPU/GPU temperature in System Health, and a
+          best-effort fix for the system flatpak update occasionally
+          failing right after zypper succeeds — it now retries just that
+          step once with a fresh authorization prompt before giving up.
+        </p>
+      </description>
+    </release>
     <release version="0.9.2" date="2026-08-30">
       <description>
         <p>

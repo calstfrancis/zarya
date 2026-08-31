@@ -1,5 +1,21 @@
 # Release Notes
 
+## [0.10.0] "Cool Dawn" — CPU/GPU thermal health, flatpak-system retry
+
+### Added
+
+- CPU/GPU temperature in System Health, same treatment as disk/drive/
+  battery: reads hwmon sensors via `flatpak-spawn --host`, allowlisted to
+  real CPU/GPU chips so NVMe/battery/Wi-Fi/AC sensors don't clutter it.
+
+### Fixed
+
+- Best-effort fix for the system flatpak update occasionally failing right
+  after zypper succeeds. The privileged step now detects whether zypper
+  actually finished before the failure and, if so, retries just the system
+  flatpak update once with a fresh `pkexec` call — keeps the single-prompt
+  experience for the normal case.
+
 ## [0.9.2] "Clear Order" — dashboard reorder, remove Preview
 
 ### Changed

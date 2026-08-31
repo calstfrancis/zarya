@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.0] — dev
+## [0.10.0] "Cool Dawn" — CPU/GPU thermal health, flatpak-system retry
 
 - Added CPU/GPU temperature to System Health, same treatment as disk/drive/
   battery: reads hwmon sensors via `flatpak-spawn --host` (allowlisted to
