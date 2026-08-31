@@ -37,6 +37,61 @@ for path in paths:
 print(json.dumps(results))
 '''
 
+_THERMAL_SCRIPT = r'''
+import glob
+import json
+import os
+
+# Only chips that are actually CPU/GPU dies — hwmon also exposes battery,
+# NVMe (already covered by drive SMART), Wi-Fi radios, AC adapters, etc.,
+# which would just be noise here.
+CPU_CHIPS = {"k10temp", "coretemp", "zenpower", "zenpower3"}
+GPU_CHIPS = {"amdgpu", "nouveau", "i915", "xe"}
+PREFERRED_LABELS = ("tctl", "tdie", "package", "edge")
+
+results = []
+for hwmon in sorted(glob.glob("/sys/class/hwmon/hwmon*")):
+    try:
+        with open(os.path.join(hwmon, "name")) as f:
+            name = f.read().strip()
+    except OSError:
+        continue
+    if name not in CPU_CHIPS and name not in GPU_CHIPS:
+        continue
+
+    readings = []
+    for temp_input in sorted(glob.glob(os.path.join(hwmon, "temp*_input"))):
+        try:
+            with open(temp_input) as f:
+                milli_c = int(f.read().strip())
+        except (OSError, ValueError):
+            continue
+        label = None
+        label_path = temp_input.replace("_input", "_label")
+        if os.path.exists(label_path):
+            try:
+                with open(label_path) as f:
+                    label = f.read().strip()
+            except OSError:
+                pass
+        readings.append((label or "", milli_c / 1000.0))
+
+    if not readings:
+        continue
+    # Prefer the canonical "package"/"die" sensor over individual per-core
+    # readings if the chip exposes one; otherwise just take the hottest.
+    preferred = [r for r in readings if r[0].lower() in PREFERRED_LABELS]
+    label, celsius = (preferred[0] if preferred else max(readings, key=lambda r: r[1]))
+    results.append({
+        "chip": name,
+        "kind": "cpu" if name in CPU_CHIPS else "gpu",
+        "label": label or name,
+        "celsius": celsius,
+    })
+
+print(json.dumps(results))
+'''
+
 UDISKS_BUS_NAME = "org.freedesktop.UDisks2"
 UDISKS_OBJECT_PATH = "/org/freedesktop/UDisks2"
 
@@ -70,6 +125,35 @@ def fetch_disk_usage(callback):
             callback(None, stdout.strip() or "no output from disk usage check")
             return
         callback(disks, None)
+
+    proc.communicate_utf8_async(None, None, on_done)
+
+
+def fetch_thermal_health(callback):
+    """Runs asynchronously; callback(readings, error) on the main loop.
+    Needs flatpak-spawn --host like disk usage — /sys/class/hwmon inside
+    the sandbox isn't guaranteed to reflect the host's real sensors."""
+    launcher = Gio.SubprocessLauncher.new(
+        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE
+    )
+    try:
+        proc = launcher.spawnv(["flatpak-spawn", "--host", "python3", "-c", _THERMAL_SCRIPT])
+    except GLib.Error as e:
+        callback(None, str(e))
+        return
+
+    def on_done(source, result):
+        try:
+            _ok, stdout, _stderr = source.communicate_utf8_finish(result)
+        except GLib.Error as e:
+            callback(None, str(e))
+            return
+        try:
+            readings = json.loads(stdout)
+        except (json.JSONDecodeError, TypeError):
+            callback(None, stdout.strip() or "no output from thermal check")
+            return
+        callback(readings, None)
 
     proc.communicate_utf8_async(None, None, on_done)
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0] — dev
+
+- Added CPU/GPU temperature to System Health, same treatment as disk/drive/
+  battery: reads hwmon sensors via `flatpak-spawn --host` (allowlisted to
+  actual CPU/GPU chips — k10temp/coretemp/zenpower, amdgpu/nouveau/i915/xe
+  — skipping NVMe/battery/Wi-Fi/AC sensors hwmon also exposes). Verified
+  against this machine's real sensors (k10temp/Tctl, amdgpu/edge) before
+  wiring it in.
+- Fixed (best-effort): the system flatpak update occasionally failing right
+  after zypper succeeds, which looked like the pkexec/polkit authorization
+  going stale by the time control reached that step. The privileged step
+  now emits a hidden progress marker after zypper finishes (filtered out of
+  the visible log); if the overall step fails but the marker was seen, the
+  system flatpak update alone is retried once with a fresh pkexec call
+  before giving up, keeping the single-prompt UX for the common case.
+
 ## [0.9.2] "Clear Order" — dashboard reorder, remove Preview
 
 - Reordered the dashboard: Weather is now first, followed by Today's

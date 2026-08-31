@@ -712,7 +712,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._health_drives_error = None
         self._health_batteries = None
         self._health_batteries_error = None
+        self._health_thermal = None
+        self._health_thermal_error = None
         system_health.fetch_disk_usage(self._on_disk_usage_ready)
+        system_health.fetch_thermal_health(self._on_thermal_health_ready)
         threading.Thread(target=self._fetch_smart_health_worker, daemon=True).start()
         threading.Thread(target=self._fetch_battery_health_worker, daemon=True).start()
 
@@ -750,11 +753,18 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._render_system_health()
         return False
 
+    def _on_thermal_health_ready(self, readings, error):
+        self._health_thermal = readings if readings is not None else []
+        self._health_thermal_error = error
+        self._render_system_health()
+        return False
+
     def _render_system_health(self):
         disks_done = self._health_disks is not None or self._health_disks_error is not None
         drives_done = self._health_drives is not None or self._health_drives_error is not None
         batteries_done = self._health_batteries is not None or self._health_batteries_error is not None
-        if not (disks_done and drives_done and batteries_done):
+        thermal_done = self._health_thermal is not None or self._health_thermal_error is not None
+        if not (disks_done and drives_done and batteries_done and thermal_done):
             return
 
         self._clear_box(self.health_box)
@@ -838,10 +848,47 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 # No battery present (most desktops) isn't an error, and
                 # isn't reported at all — nothing meaningful to show.
 
-        if not any_row and not self._health_disks_error and not self._health_drives_error and not self._health_batteries_error:
+        if self._health_thermal_error:
+            error_label = Gtk.Label(label=f"Couldn't check temperatures: {self._health_thermal_error}", xalign=0, wrap=True)
+            error_label.add_css_class("dim-label")
+            self.health_box.append(error_label)
+        else:
+            for reading in self._health_thermal:
+                any_row = True
+                celsius = reading["celsius"]
+                critical = celsius >= 95
+                warning = celsius >= 85
+                any_problem = any_problem or critical
+                if critical:
+                    icon_name, css_class = "dialog-error-symbolic", "error"
+                elif warning:
+                    icon_name, css_class = "dialog-warning-symbolic", "warning"
+                else:
+                    icon_name, css_class = "temperature-symbolic", "dim-label"
+                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                icon = Gtk.Image(icon_name=icon_name)
+                icon.add_css_class(css_class)
+                row.append(icon)
+                kind_label = "CPU" if reading["kind"] == "cpu" else "GPU"
+                label = Gtk.Label(
+                    label=f"{kind_label} ({reading['chip']}) — {celsius:.0f}°C",
+                    xalign=0, hexpand=True,
+                )
+                row.append(label)
+                self.health_box.append(row)
+                # No hwmon chip we recognize (VM, unusual hardware) isn't
+                # an error — nothing meaningful to show, same as batteries.
+
+        if (
+            not any_row and not self._health_disks_error and not self._health_drives_error
+            and not self._health_batteries_error and not self._health_thermal_error
+        ):
             self._set_box_message(self.health_box, "No disk or drive health data available.")
 
-        any_error = self._health_disks_error or self._health_drives_error or self._health_batteries_error
+        any_error = (
+            self._health_disks_error or self._health_drives_error
+            or self._health_batteries_error or self._health_thermal_error
+        )
         if any_error:
             self._set_status_icon(self.health_status_icon, "error" if any_problem else "neutral")
         else:
@@ -1042,11 +1089,15 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.run_button.set_sensitive(not running)
         self.cancel_button.set_sensitive(running)
 
+    _ZYPPER_DONE_MARKER = "__ZARYA_ZYPPER_DONE__"
+
     def start_updates(self):
         if self.proc is not None:
             return
         self.buffer.set_text("")
         self._set_running(True)
+        self._system_flatpak_retried = False
+        self._saw_hidden_marker = False
         self.status_label.set_label("Updating…")
         self.logline(f"=== Zarya update: {self.today_str()} ===")
         self.logline("")
@@ -1054,14 +1105,31 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.run_step(
             [
                 "flatpak-spawn", "--host", "pkexec", "sh", "-c",
-                "zypper ref && zypper dup -y && flatpak update --system -y",
+                f"zypper ref && zypper dup -y && echo {self._ZYPPER_DONE_MARKER} && flatpak update --system -y",
             ],
             self.on_privileged_done,
+            hidden_marker=self._ZYPPER_DONE_MARKER,
         )
 
     def on_privileged_done(self, success, exit_status):
         self.logline("")
         if not success:
+            zypper_succeeded = self._saw_hidden_marker
+            if zypper_succeeded and not self._system_flatpak_retried:
+                # zypper itself finished fine — this is specifically the
+                # system flatpak update failing, which Cal has seen happen
+                # intermittently (looked like the polkit authorization from
+                # the same pkexec session going stale by the time zypper's
+                # dup finished and control reached this step). One retry,
+                # with a fresh pkexec call, since we don't otherwise know
+                # whether it's transient.
+                self._system_flatpak_retried = True
+                self.logline("zypper succeeded, but the system flatpak update failed — retrying it once...")
+                self.run_step(
+                    ["flatpak-spawn", "--host", "pkexec", "flatpak", "update", "--system", "-y"],
+                    self.on_privileged_done,
+                )
+                return
             self.logline(f"zypper/system-flatpak step failed (exit status {exit_status}).")
             self.finish(success=False)
             return
@@ -1113,7 +1181,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             notification.set_icon(Gio.ThemedIcon.new("dialog-error-symbolic"))
         app.send_notification("zarya-update", notification)
 
-    def run_step(self, argv, done_callback):
+    def run_step(self, argv, done_callback, hidden_marker=None):
         launcher = Gio.SubprocessLauncher.new(
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE
         )
@@ -1131,10 +1199,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # otherwise leave the read loop waiting for an EOF that never comes.
         proc = self.proc
         stream = Gio.DataInputStream.new(proc.get_stdout_pipe())
-        self._pump_output(stream)
+        self._pump_output(stream, hidden_marker)
         proc.wait_async(None, self._on_wait, done_callback)
 
-    def _pump_output(self, stream):
+    def _pump_output(self, stream, hidden_marker=None):
         def on_line(source, result):
             try:
                 line, _length = source.read_line_finish_utf8(result)
@@ -1142,7 +1210,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 return
             if line is None:
                 return
-            self.logline(line)
+            if hidden_marker is not None and line.strip() == hidden_marker:
+                # An internal progress marker, not real command output —
+                # record it without cluttering the visible log.
+                self._saw_hidden_marker = True
+            else:
+                self.logline(line)
             source.read_line_async(GLib.PRIORITY_DEFAULT, None, on_line)
 
         stream.read_line_async(GLib.PRIORITY_DEFAULT, None, on_line)
