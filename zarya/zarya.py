@@ -328,6 +328,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         autostart_label = Gtk.Label(label="Start at login")
         self.autostart_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
         self.autostart_switch.set_active(autostart_path().exists())
+        self._heal_stale_autostart_entry()
         self.autostart_switch.connect("state-set", self.on_autostart_toggled)
         button_row.append(autostart_label)
         button_row.append(self.autostart_switch)
@@ -382,6 +383,40 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.fetch_events()
         else:
             self._set_box_message(self.events_box, "Connect your Google Account in Preferences to see today's events.")
+
+        # The autostart entry only runs at an actual login — on a machine
+        # that stays logged in across suspend/resume for days at a stretch
+        # (this one reboots roughly weekly but suspends daily), that means
+        # the very first login of the week is the *only* time the process
+        # is ever (re)launched, so the daily auto-run would otherwise never
+        # fire again on the days in between. Since the app stays resident in
+        # the tray across those days, poll for a day rollover instead of
+        # relying solely on being relaunched.
+        GLib.timeout_add_seconds(300, self._maybe_autorun)
+
+    def _heal_stale_autostart_entry(self):
+        """Keep an already-enabled autostart entry in sync with the current
+        AUTOSTART_CONTENT. Written once when the switch is toggled on, so a
+        file from before a change to that template (e.g. the --background
+        flag added in v0.4.0) would otherwise sit stale forever."""
+        path = autostart_path()
+        if not path.exists():
+            return
+        try:
+            if path.read_text() != AUTOSTART_CONTENT:
+                path.write_text(AUTOSTART_CONTENT)
+        except OSError:
+            pass
+
+    def _maybe_autorun(self):
+        if (
+            self.proc is None
+            and self.config.get("onboarded")
+            and autostart_path().exists()
+            and not self.already_ran_today()
+        ):
+            self.start_updates()
+        return True
 
     def _make_section(self, key, title, content, on_refresh=None, extra_button=None, show_icon=True):
         status_icon = Gtk.Image()

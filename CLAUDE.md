@@ -141,6 +141,27 @@ is false, in which case it falls through to a real close so the window can
 never become unreachable. `app.hold()` keeps the `GApplication` alive while
 hidden; "Quit Zarya" in the hamburger menu is the actual way out.
 
+## Autorun reliability — login-triggered isn't enough
+
+The autostart `.desktop` entry only runs once, at an actual login — it does
+**not** re-fire on suspend/resume. On a machine that reboots/logs out only
+occasionally but suspends daily in between (this one: weekly reboots, daily
+suspend), that means the daily update would only ever run on reboot days
+and silently never again in between, since the app then just sits resident
+in the tray. Real bug found this way ("the autorun isn't firing", 2026-09-01).
+Fixed with a 5-minute `GLib.timeout_add_seconds` poll (`_maybe_autorun` in
+`ZaryaWindow.__init__`) that runs `start_updates()` whenever the day has
+rolled over and autostart is enabled, independent of any fresh login.
+
+Also: the autostart file's content (`AUTOSTART_CONTENT`) is only ever
+written when the "Start at login" switch is toggled — a file from before a
+template change (e.g. the `--background` flag added in v0.4.0) goes stale
+and silently keeps launching with the old `Exec=` line forever. Fixed with
+`_heal_stale_autostart_entry()`, called on every startup, which rewrites the
+file if it's out of sync with the current template. Any future change to
+`AUTOSTART_CONTENT` self-heals on the next launch instead of needing users
+to re-toggle the switch.
+
 ## Weather chart history
 
 The hourly weather display was originally a Cairo-drawn line/bar chart

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.1] "dev" — fix autorun not firing
+
+- Fixed: the daily auto-run (via "Start at login") wasn't actually firing.
+  Two causes: (1) the on-disk autostart entry could go stale — it's only
+  (re)written when the switch is toggled, so a file created before the
+  `--background` flag existed (v0.4.0) kept launching without it; the app
+  now re-syncs the entry to the current template on every startup if the
+  switch is on. (2) The autostart entry only runs at an actual login, but
+  this machine (and presumably others) mostly suspends/resumes rather than
+  logging out daily — so on every day between real logins/reboots, nothing
+  ever re-triggered the run. Zarya now also polls every 5 minutes while
+  running and auto-runs if the day has rolled over and it hasn't updated
+  yet, independent of login.
+
 ## [0.10.0] "Cool Dawn" — CPU/GPU thermal health, flatpak-system retry
 
 - Added CPU/GPU temperature to System Health, same treatment as disk/drive/
