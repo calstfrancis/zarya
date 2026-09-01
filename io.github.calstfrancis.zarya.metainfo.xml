@@ -39,6 +39,21 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.10.1" date="2026-09-01">
+      <description>
+        <p>
+          "Faithful Dawn". The daily auto-run now actually happens every
+          day — it previously only fired on an actual login, so a machine
+          that mostly suspends/resumes rather than logging out daily could
+          silently miss it for days at a stretch; a stale autostart entry
+          missing the background flag made this worse. Also fixes the main
+          window on small/low-res screens, where the bottom action row
+          could render below the visible screen with no way to reach it —
+          the dashboard content now scrolls, and the action row stays
+          pinned and always visible.
+        </p>
+      </description>
+    </release>
     <release version="0.10.0" date="2026-08-31">
       <description>
         <p>

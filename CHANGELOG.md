@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.1] "dev" — fix autorun not firing, unscrollable window on small screens
+## [0.10.1] "Faithful Dawn" — fix autorun not firing, unscrollable window on small screens
 
 - Fixed: the daily auto-run (via "Start at login") wasn't actually firing.
   Two causes: (1) the on-disk autostart entry could go stale — it's only

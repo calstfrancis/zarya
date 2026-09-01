@@ -1,5 +1,24 @@
 # Release Notes
 
+## [0.10.1] "Faithful Dawn" — reliable autorun, scrollable window
+
+### Fixed
+
+- The daily auto-run (via "Start at login") wasn't actually firing on most
+  days. Two causes: the autostart `.desktop` entry is only rewritten when
+  the switch is toggled, so a file predating the `--background` flag
+  (v0.4.0) kept launching without it — now self-heals to the current
+  template on every startup. More importantly, the autostart entry only
+  runs at an actual login; a machine that mostly suspends/resumes rather
+  than logging out daily would otherwise never re-trigger the run in
+  between. Zarya now polls every 5 minutes while running and auto-runs if
+  the day has rolled over and it hasn't updated yet, independent of login.
+- On a small or low-resolution screen, the main window's content didn't
+  fit and the bottom "Run Now"/"Cancel"/"Hide to Tray" row could render
+  below the bottom of the screen with no way to reach it. The dashboard
+  content now scrolls in its own view, and the action row is a persistent
+  bottom bar, always visible regardless of window height.
+
 ## [0.10.0] "Cool Dawn" — CPU/GPU thermal health, flatpak-system retry
 
 ### Added
