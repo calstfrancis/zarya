@@ -23,8 +23,8 @@
       <li>System Health: disk space, drive SMART status, battery health, and CPU/GPU temperature</li>
       <li>Today's events from any combination of your Google calendars</li>
       <li>A persistent to-do sidebar synced with Google Tasks</li>
-      <li>Desktop notification, run history, and a "Preview" dry-run before committing to a real update</li>
-      <li>System tray icon; optional autostart at login runs quietly in the background instead of opening a window</li>
+      <li>Desktop notification and run history</li>
+      <li>System tray icon; "Start at login" (on by default) runs quietly in the background instead of opening a window</li>
     </ul>
   </description>
 
@@ -39,6 +39,19 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.11.0" date="2026-09-01">
+      <description>
+        <p>
+          "Clear Signal". "Start at login" now turns on automatically the
+          first time you finish setup, instead of defaulting off. Fixed a
+          broken-image icon on the CPU/GPU temperature rows in System
+          Health (an icon name that doesn't exist in Adwaita's icon set),
+          and dropped the hardware chip/model names from those rows and
+          the battery row for a simpler read. Rebuilt the What's New
+          window with the Fond suite's shared visual language.
+        </p>
+      </description>
+    </release>
     <release version="0.10.1" date="2026-09-01">
       <description>
         <p>

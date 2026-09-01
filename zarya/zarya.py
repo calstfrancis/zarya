@@ -549,16 +549,22 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def on_whats_new_clicked(self, _button):
         self.menu_popover.popdown()
-        window = Adw.Window(transient_for=self, modal=True, default_width=480, default_height=560, title="What's New")
+        window = Adw.Window(transient_for=self, modal=True, default_width=560, default_height=680, title="What's New")
+
+        header = Adw.HeaderBar()
+        header.add_css_class("fond-chrome")
+        header.set_title_widget(Adw.WindowTitle(title="What's New", subtitle=f"You're on v{__version__}"))
+
+        body = changelog.build_view(__version__)
+        clamp = Adw.Clamp(maximum_size=480)
+        clamp.set_child(body)
+
+        scrolled = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        scrolled.set_child(clamp)
+
         toolbar_view = Adw.ToolbarView()
-        toolbar_view.add_top_bar(Adw.HeaderBar())
-        scrolled = Gtk.ScrolledWindow(vexpand=True)
-        label = Gtk.Label(
-            xalign=0, valign=Gtk.Align.START, wrap=True, selectable=True,
-            margin_top=12, margin_bottom=12, margin_start=12, margin_end=12,
-        )
-        label.set_markup(changelog.to_pango_markup(changelog.load_text()))
-        scrolled.set_child(label)
+        toolbar_view.set_top_bar_style(Adw.ToolbarStyle.RAISED_BORDER)
+        toolbar_view.add_top_bar(header)
         toolbar_view.set_content(scrolled)
         window.set_content(toolbar_view)
         window.present()
@@ -881,7 +887,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 icon = Gtk.Image(icon_name=icon_name)
                 icon.add_css_class(css_class)
                 row.append(icon)
-                text = f"{battery['model']} — {battery.get('percentage', 0):.0f}% charged"
+                text = f"Battery — {battery.get('percentage', 0):.0f}% charged"
                 if capacity is not None:
                     text += f", {capacity:.0f}% battery health"
                 if battery.get("cycles"):
@@ -908,14 +914,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 elif warning:
                     icon_name, css_class = "dialog-warning-symbolic", "warning"
                 else:
-                    icon_name, css_class = "temperature-symbolic", "dim-label"
+                    icon_name, css_class = "emblem-ok-symbolic", "dim-label"
                 row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
                 icon = Gtk.Image(icon_name=icon_name)
                 icon.add_css_class(css_class)
                 row.append(icon)
                 kind_label = "CPU" if reading["kind"] == "cpu" else "GPU"
                 label = Gtk.Label(
-                    label=f"{kind_label} ({reading['chip']}) — {celsius:.0f}°C",
+                    label=f"{kind_label} — {celsius:.0f}°C",
                     xalign=0, hexpand=True,
                 )
                 row.append(label)
@@ -1313,6 +1319,14 @@ class ZaryaApplication(Adw.Application):
             self.window.present()
 
     def on_onboarding_finished(self):
+        if not autostart_path().exists():
+            try:
+                autostart_path().parent.mkdir(parents=True, exist_ok=True)
+                autostart_path().write_text(AUTOSTART_CONTENT)
+            except OSError:
+                pass
+            else:
+                self.window.autostart_switch.set_active(True)
         self.window.fetch_weather()
         self.window.fetch_events()
         self.window.todo_sidebar.fetch_tasks()

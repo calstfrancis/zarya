@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.11.0] "Clear Signal" — beautified What's New, fixed missing System Health icons, autostart on by default
+
+- Added: "Start at login" now switches on automatically the first time
+  you finish setup, instead of defaulting off and requiring you to find
+  and flip it yourself — Zarya's whole point is the daily unattended run,
+  so it now works out of the box.
+- Fixed: the CPU/GPU temperature rows in System Health were showing a
+  broken-image icon (a box with a red circle) instead of a status icon —
+  `temperature-symbolic` isn't a real icon in Adwaita's icon set. Swapped
+  for `emblem-ok-symbolic`, matching the checkmark already used for a
+  healthy drive.
+- Changed: dropped the hwmon chip name from CPU/GPU rows (just "CPU —
+  62°C" instead of "CPU (k10temp) — 62°C") and the battery's device model
+  from the battery row (just "Battery — 87% charged"), matching the
+  system tray's icon-driven convention of leading with what the reading
+  is for, not the hardware it came from.
+- Changed: rebuilt the What's New window as native widgets styled to the
+  Fond suite's shared `fond.css` conventions (`fond-section` per release,
+  `fond-card` bullets, a "Current" badge for the installed version)
+  instead of one long block of Pango-markup text, matching Zerkalo's
+  changelog window. Zarya now vendors `style/fond.css` like the rest of
+  the suite.
+
 ## [0.10.1] "Faithful Dawn" — fix autorun not firing, unscrollable window on small screens
 
 - Fixed: the daily auto-run (via "Start at login") wasn't actually firing.

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -83,6 +85,13 @@ FONDWAVE_CSS = f"""
   padding: 1px 5px;
 }}
 
+.changelog-text, .changelog-text text {{
+  background: transparent;
+}}
+.changelog-text {{
+  padding: 0;
+}}
+
 .fondwave-terminal, .fondwave-terminal textview, .fondwave-terminal textview text {{
   background-color: {TERMINAL_BG};
   color: {TERMINAL_FG};
@@ -94,9 +103,45 @@ FONDWAVE_CSS = f"""
 """
 
 
+def _find_fond_css() -> Path | None:
+    """Locate the vendored copy of the Fond suite's shared stylesheet.
+
+    Same two-location fallback as CHANGELOG.md and the app icon: the flatpak
+    build copies ``style/fond.css`` from the git checkout into
+    ``zarya/data/fond.css`` before ``pip install`` (see
+    ``io.github.calstfrancis.zarya.yml``), while a plain ``pip install -e .``
+    dev checkout only has the ``style/`` copy. A missing stylesheet isn't
+    worth refusing to start over — Zarya is usable unstyled.
+    """
+    p = Path(__file__).resolve().parent.parent / "style" / "fond.css"
+    if p.exists():
+        return p
+    try:
+        import importlib.resources
+        ref = importlib.resources.files("zarya.data").joinpath("fond.css")
+        with importlib.resources.as_file(ref) as p2:
+            if p2.exists():
+                return p2
+    except (ImportError, ModuleNotFoundError, FileNotFoundError):
+        pass
+    return None
+
+
 def apply():
+    display = Gdk.Display.get_default()
+    if display is None:
+        return
+
+    fond_path = _find_fond_css()
+    if fond_path is not None:
+        fond_provider = Gtk.CssProvider()
+        fond_provider.load_from_data(fond_path.read_text().encode())
+        Gtk.StyleContext.add_provider_for_display(
+            display, fond_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
     provider = Gtk.CssProvider()
     provider.load_from_string(FONDWAVE_CSS)
     Gtk.StyleContext.add_provider_for_display(
-        Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
     )
