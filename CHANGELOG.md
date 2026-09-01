@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.1] "dev" — fix autorun not firing
+## [0.10.1] "dev" — fix autorun not firing, unscrollable window on small screens
 
 - Fixed: the daily auto-run (via "Start at login") wasn't actually firing.
   Two causes: (1) the on-disk autostart entry could go stale — it's only
@@ -13,6 +13,13 @@
   ever re-triggered the run. Zarya now also polls every 5 minutes while
   running and auto-runs if the day has rolled over and it hasn't updated
   yet, independent of login.
+- Fixed: on a small/low-res screen (e.g. a T490's display), the main
+  content didn't fit and the bottom "Run Now"/"Cancel"/"Hide to Tray" row
+  could end up below the bottom of the screen with no way to reach it. The
+  dashboard content now scrolls in its own `Gtk.ScrolledWindow`, and the
+  action row (plus "Start at login") is a persistent bottom bar via
+  `Adw.ToolbarView.add_bottom_bar`, always visible regardless of window
+  height. Verified headlessly at a 1366×700 window size before and after.
 
 ## [0.10.0] "Cool Dawn" — CPU/GPU thermal health, flatpak-system retry
 

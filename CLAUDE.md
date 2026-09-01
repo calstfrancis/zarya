@@ -162,6 +162,20 @@ file if it's out of sync with the current template. Any future change to
 `AUTOSTART_CONTENT` self-heals on the next launch instead of needing users
 to re-toggle the switch.
 
+## Window layout — scrollable content, pinned action bar
+
+The main window's dashboard content (`root_box`, all the sections) lives
+inside a `Gtk.ScrolledWindow` (vertical only), not directly in the toast
+overlay — a fixed `set_default_size(980, 780)` doesn't fit on every real
+screen (a real bug on a T490's display: the bottom button row rendered
+below the visible screen with no way to reach it). The "Start at
+login"/"Run Now"/"Cancel"/"Hide to Tray" row is added via
+`Adw.ToolbarView.add_bottom_bar`, not appended into the scrollable
+`root_box`, so it always stays visible regardless of window height or
+screen size. Any future section added to the dashboard goes in `root_box`
+(scrolls); anything that must always be reachable (like these controls)
+goes on the toolbar view's top/bottom bars instead.
+
 ## Weather chart history
 
 The hourly weather display was originally a Cairo-drawn line/bar chart

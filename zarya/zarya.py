@@ -323,7 +323,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         )
         root_box.append(log_expander)
 
-        button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        button_row = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=8,
+            margin_top=8,
+            margin_bottom=8,
+            margin_start=12,
+            margin_end=12,
+        )
 
         autostart_label = Gtk.Label(label="Start at login")
         self.autostart_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
@@ -351,9 +358,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         close_button.connect("clicked", lambda *_: self.close())
         button_row.append(close_button)
 
-        root_box.append(button_row)
-
-        self.toast_overlay.set_child(root_box)
+        root_scrolled = Gtk.ScrolledWindow(vexpand=True)
+        root_scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        root_scrolled.set_child(root_box)
+        self.toast_overlay.set_child(root_scrolled)
 
         self.todo_sidebar = TodoSidebar()
 
@@ -371,6 +379,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._paned_save_timeout = None
 
         toolbar_view.set_content(main_paned)
+        toolbar_view.add_bottom_bar(button_row)
         self.set_content(toolbar_view)
 
         self.refresh_status()
