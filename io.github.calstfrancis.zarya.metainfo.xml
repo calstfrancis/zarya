@@ -39,6 +39,19 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.12.0" date="2026-09-08">
+      <description>
+        <p>
+          "Silent Dawn". The automatic daily update no longer pops a
+          password prompt — click Enable in Preferences &gt; Updates once
+          (a single password prompt, right in the app) to set up a
+          root-owned systemd timer that runs the update entirely on its
+          own from then on. "Run Now" is unchanged and still prompts every
+          time, since that's a manual action, not the unattended case this
+          is about.
+        </p>
+      </description>
+    </release>
     <release version="0.11.1" date="2026-09-08">
       <description>
         <p>

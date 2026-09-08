@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.0] — dev
+## [0.12.0] "Silent Dawn" — passwordless daily updates
 
 - Added: the automatic daily update no longer pops a password prompt.
   One-time setup, entirely in-app: Preferences > Updates > Enable — one
