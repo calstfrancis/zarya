@@ -1,3 +1,4 @@
+import datetime
 import json
 import urllib.parse
 import urllib.request
@@ -62,6 +63,9 @@ def geocode(location):
 
 
 def fetch_today(lat, lon):
+    # past_days=1 + forecast_days=2 gives three full days (yesterday, today,
+    # tomorrow) so the ±12h hourly window below always has enough on either
+    # side of "now" to slice from, however close to midnight "now" is.
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -69,7 +73,8 @@ def fetch_today(lat, lon):
         "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability",
         "current": "temperature_2m,apparent_temperature",
         "timezone": "auto",
-        "forecast_days": 1,
+        "past_days": 1,
+        "forecast_days": 2,
     }
     url = f"{FORECAST_URL}?{urllib.parse.urlencode(params)}"
     with urllib.request.urlopen(url, timeout=10) as resp:
@@ -77,14 +82,31 @@ def fetch_today(lat, lon):
     daily = data["daily"]
     hourly = data["hourly"]
     current = data.get("current") or {}
+
+    # `past_days=1` shifts the `daily` arrays too — index 0 is now
+    # yesterday, not today. Today is always at index 1 (exactly one past
+    # day is always inserted ahead of it).
+    TODAY_INDEX = 1
+
+    # Find "now" in the hourly series (matched on date+hour, not hour alone
+    # — several entries share the same hour-of-day once the window below
+    # can span two calendar days) and slice to the 12 hours before and
+    # after it, inclusive of "now" itself (25 points total).
+    now_prefix = datetime.datetime.now().strftime("%Y-%m-%dT%H")
+    now_idx = next(
+        (i for i, t in enumerate(hourly["time"]) if t.startswith(now_prefix)),
+        len(hourly["time"]) // 2,  # shouldn't happen; degrade to the window's middle
+    )
+    lo, hi = max(0, now_idx - 12), min(len(hourly["time"]), now_idx + 13)
+
     return {
-        "code": daily["weather_code"][0],
-        "temp_max_c": daily["temperature_2m_max"][0],
-        "temp_min_c": daily["temperature_2m_min"][0],
-        "hours": hourly["time"],
-        "temp_c": hourly["temperature_2m"],
-        "humidity": [v if v is not None else 0 for v in hourly["relative_humidity_2m"]],
-        "precip_prob": [v if v is not None else 0 for v in hourly["precipitation_probability"]],
+        "code": daily["weather_code"][TODAY_INDEX],
+        "temp_max_c": daily["temperature_2m_max"][TODAY_INDEX],
+        "temp_min_c": daily["temperature_2m_min"][TODAY_INDEX],
+        "hours": hourly["time"][lo:hi],
+        "temp_c": hourly["temperature_2m"][lo:hi],
+        "humidity": [v if v is not None else 0 for v in hourly["relative_humidity_2m"][lo:hi]],
+        "precip_prob": [v if v is not None else 0 for v in hourly["precipitation_probability"][lo:hi]],
         "current_temp_c": current.get("temperature_2m"),
         "feels_like_c": current.get("apparent_temperature"),
     }

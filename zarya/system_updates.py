@@ -77,8 +77,16 @@ def _run_privileged_script(script, callback):
 def enable(callback):
     """Async: callback(success, error_message_or_None). Installs both unit
     files and starts the timer — one pkexec prompt."""
-    service_content = (_DATA_DIR / SYSTEM_UPDATE_SERVICE).read_text()
-    timer_content = (_DATA_DIR / SYSTEM_UPDATE_TIMER).read_text()
+    try:
+        service_content = (_DATA_DIR / SYSTEM_UPDATE_SERVICE).read_text()
+        timer_content = (_DATA_DIR / SYSTEM_UPDATE_TIMER).read_text()
+    except OSError as e:
+        # Only reachable via a packaging bug (these ship as package data,
+        # see pyproject.toml) — but callers only expect this function to
+        # ever report failure through `callback`, never raise, so a bad
+        # build shows a clean error instead of crashing the click handler.
+        callback(False, f"couldn't read bundled unit files: {e}")
+        return
     script = f"""set -e
 cat > /etc/systemd/system/{SYSTEM_UPDATE_SERVICE} <<'ZARYA_UNIT_EOF'
 {service_content}ZARYA_UNIT_EOF

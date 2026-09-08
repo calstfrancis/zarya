@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.1] "Steady Hours" — weather window fix, Run Anyway fix
+
+- Changed: the hourly weather table now shows the 12 hours before and 12
+  hours after right now (25 columns, always centered on "now"), instead of
+  a fixed midnight-to-midnight window that showed mostly-past hours late in
+  the day and mostly-future hours early in the day.
+- Fixed: "Run Anyway" could silently do less than asking — if the daily
+  timer (Preferences > Updates) had already succeeded today, clicking "Run
+  Anyway" skipped straight to the unprivileged flatpak step instead of
+  actually forcing a real re-run, since it reused the same "did the timer
+  already handle today" check that's meant to spare a redundant password
+  prompt on the day's *first* click, not water down an explicit forced
+  re-run into a no-op.
+
 ## [0.12.0] "Silent Dawn" — passwordless daily updates
 
 - Added: the automatic daily update no longer pops a password prompt.

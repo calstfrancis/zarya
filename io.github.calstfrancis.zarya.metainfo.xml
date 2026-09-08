@@ -39,6 +39,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.12.1" date="2026-09-08">
+      <description>
+        <p>
+          "Steady Hours". The hourly weather table now always shows the 12
+          hours before and 12 hours after right now, instead of a fixed
+          midnight-to-midnight window. Also fixes "Run Anyway" silently
+          skipping a forced re-run when the daily timer had already
+          succeeded that day.
+        </p>
+      </description>
+    </release>
     <release version="0.12.0" date="2026-09-08">
       <description>
         <p>

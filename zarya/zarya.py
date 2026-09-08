@@ -1230,6 +1230,15 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.status_label.set_label("Checking…")
         self.logline(f"=== Zarya update: {self.today_str()} ===")
         self.logline("")
+        if interactive and self.already_ran_today():
+            # "Run Anyway": Zarya's own marker already says today is done,
+            # so this is a deliberate forced re-run — skip the "did the
+            # timer already do this" dedup check entirely. That check exists
+            # to spare a redundant password prompt on the day's *first*
+            # click when the root timer got there first, not to silently
+            # water down an explicit "do it again" request into a no-op.
+            self._on_daily_status_checked(False, False)
+            return
         _check_unit_already_ran_today(SYSTEM_UPDATE_UNIT, self._on_daily_status_checked)
 
     def _on_daily_status_checked(self, ran_today, succeeded_today):
