@@ -1,246 +1,59 @@
-# Release Notes
+# Zarya v0.11.0 "Clear Signal"
 
-## [0.10.1] "Faithful Dawn" — reliable autorun, scrollable window
+**Released:** 2026-09-01
 
-### Fixed
+## What's new
 
-- The daily auto-run (via "Start at login") wasn't actually firing on most
-  days. Two causes: the autostart `.desktop` entry is only rewritten when
-  the switch is toggled, so a file predating the `--background` flag
-  (v0.4.0) kept launching without it — now self-heals to the current
-  template on every startup. More importantly, the autostart entry only
-  runs at an actual login; a machine that mostly suspends/resumes rather
-  than logging out daily would otherwise never re-trigger the run in
-  between. Zarya now polls every 5 minutes while running and auto-runs if
-  the day has rolled over and it hasn't updated yet, independent of login.
-- On a small or low-resolution screen, the main window's content didn't
-  fit and the bottom "Run Now"/"Cancel"/"Hide to Tray" row could render
-  below the bottom of the screen with no way to reach it. The dashboard
-  content now scrolls in its own view, and the action row is a persistent
-  bottom bar, always visible regardless of window height.
+Mostly polish on top of the recent System Health and autorun-reliability work:
 
-## [0.10.0] "Cool Dawn" — CPU/GPU thermal health, flatpak-system retry
+- **"Start at login" now switches on automatically** the first time you finish
+  setup, instead of defaulting off and requiring you to find and flip it
+  yourself — Zarya's whole point is the daily unattended run, so it now
+  works out of the box.
+- **Fixed a broken-image icon** on the CPU/GPU temperature rows in System
+  Health — `temperature-symbolic` isn't a real icon in Adwaita's icon set,
+  so it showed a box-with-a-red-circle instead of a status icon. Swapped for
+  the same checkmark already used for a healthy drive.
+- **Simpler System Health labels** — dropped the hwmon chip name from
+  CPU/GPU rows (just "CPU — 62°C" instead of "CPU (k10temp) — 62°C") and
+  the device model from the battery row (just "Battery — 87% charged"),
+  matching the system tray's convention of leading with what the reading is
+  for, not the hardware it came from.
+- **Rebuilt the What's New window** as native widgets styled to the Fond
+  suite's shared `fond.css` conventions (a card per release, a "Current"
+  badge for the installed version) instead of one long block of Pango-markup
+  text — matching Zerkalo's changelog window.
 
-### Added
+See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases,
+including v0.10.1 "Faithful Dawn" (reliable autorun, a scrollable window for
+small screens), v0.10.0 "Cool Dawn" (CPU/GPU temperature in System Health),
+and the releases before that — weather alerts and AQI, a system tray icon,
+battery/drive health, multi-calendar support, and Google Tasks sync.
 
-- CPU/GPU temperature in System Health, same treatment as disk/drive/
-  battery: reads hwmon sensors via `flatpak-spawn --host`, allowlisted to
-  real CPU/GPU chips so NVMe/battery/Wi-Fi/AC sensors don't clutter it.
+## Download
 
-### Fixed
+| Method | Platform |
+|---|---|
+| Flatpak (`calstfrancis` repo) | Any Linux with Flatpak installed |
 
-- Best-effort fix for the system flatpak update occasionally failing right
-  after zypper succeeds. The privileged step now detects whether zypper
-  actually finished before the failure and, if so, retries just the system
-  flatpak update once with a fresh `pkexec` call — keeps the single-prompt
-  experience for the normal case.
+## Installation
 
-## [0.9.2] "Clear Order" — dashboard reorder, remove Preview
+```bash
+flatpak remote-add --user calstfrancis \
+  https://calstfrancis.github.io/flatpak/calstfrancis.flatpakrepo
+flatpak install calstfrancis io.github.calstfrancis.zarya
+```
 
-### Changed
+Already installed? `flatpak update` picks this up.
 
-- New section order: Weather, Today's Events & Due Dates, System Health,
-  Backups, then the "already updated today" status area moved from the
-  very top down to sit directly above the Update Log.
-- Removed the Preview (zypper dry-run) button.
+## Running
 
-## [0.9.1] "True Reading" — fix the AQI number itself
+```bash
+flatpak run io.github.calstfrancis.zarya
+```
 
-### Fixed
+---
 
-- The "AQI" badge was actually Canada's AQHI (a 1-10 health scale), not the
-  standard 0-500 AQI every other weather app shows — a reading like "1"
-  looked plausible but meant something entirely different from what it
-  claimed to be. Now sourced from Open-Meteo's air-quality API (`us_aqi`),
-  which also works globally instead of being Canada-only, with the correct
-  six-tier EPA color scale.
+## Full changelog
 
-## [0.9.0] "Vivid Dawn" — HTML-entity fix, resizable sidebar, AQI badge
-
-### Added
-
-- The to-do sidebar is now resizable — a draggable divider instead of a
-  fixed width, position remembered across restarts.
-- Air quality is now a real color-coded badge (green/yellow/orange/red per
-  AQHI tier), and the current-hour column in the weather table is a filled
-  pill instead of just bold text — both stand out at a glance now.
-
-### Fixed
-
-- Event and task titles with apostrophes (and other special characters)
-  showed as literal HTML entities, e.g. "Emma&#39;s Mom's Birthday" —
-  Google's Calendar and Tasks APIs return HTML-escaped text in some
-  fields; now decoded properly.
-
-## [0.8.0] "Steady Charge" — battery health
-
-### Added
-
-- Battery health in the System Health section, same treatment as drive
-  SMART status: reads UPower's `Capacity` property (the real wear
-  percentage) plus charge level and cycle count, over the system D-Bus —
-  no root, no password prompt. Skipped entirely on desktops with no
-  battery, not treated as an error.
-
-### Fixed
-
-- The About window and `pyproject.toml` attributed the app to "Praxis" (a
-  stale template placeholder) instead of Cal — now says "calstfrancis"
-  throughout.
-
-## [0.7.0] "Steel Dawn" — System Health section (disk space + SMART)
-
-### Added
-
-- A System Health section, next to Backups: disk space for each real
-  mounted filesystem, and drive SMART status. SMART reads UDisks2's cached
-  properties over the system D-Bus rather than shelling out to `smartctl`
-  (which needs root) — no password prompt, just accurate health data.
-  Handles both ATA and NVMe drives.
-
-### Fixed
-
-- A small pre-existing dead-code bug in `_format_backup_time`, left over
-  from an earlier refactor.
-
-## [0.6.0] "Gathered Dawn" — multiple Google calendars
-
-### Added
-
-- Today's Events supports multiple Google calendars — Preferences > Google
-  lists every calendar on your account as checkboxes (fetched live) and
-  merges events across whichever ones you select. Defaults to just your
-  primary calendar. A calendar that fails to fetch (removed, unshared) is
-  skipped rather than failing the whole section.
-
-## [0.5.0] "Coral Sync" — to-do sidebar synced with Google Tasks
-
-### Added
-
-- The to-do sidebar is now backed by real Google Tasks (`@default` list)
-  instead of local storage — add/check-off/remove all sync for real, and
-  tasks show up in the Google Tasks app and Gmail too.
-- One Google connection now covers both Calendar and Tasks — a single,
-  widened-scope consent instead of two separate connect flows. Preferences'
-  "Calendar" page is renamed "Google"; "Connect Google Calendar" is now
-  "Connect Google Account".
-
-### Requires external setup
-
-- The Google Tasks API needs to be enabled on the Google Cloud project
-  (console.cloud.google.com/apis/library/tasks.googleapis.com — not "Cloud
-  Tasks API", a different, unrelated product), and the `tasks` scope added
-  to the OAuth consent screen.
-- Anyone already connected needs to disconnect and reconnect once in
-  Preferences to pick up the wider scope — the old token doesn't cover
-  Tasks calls.
-
-## [0.4.0] "Quiet Ember" — system tray icon, hourly weather refresh
-
-### Added
-
-- A real system tray icon, talking directly to the StatusNotifierItem/
-  StatusNotifierWatcher D-Bus protocol — the mechanism underneath
-  libappindicator, with no new library or flatpak module needed. Degrades
-  gracefully to normal window behavior if no tray watcher is running.
-- Launching from the autostart entry (`--background`) now starts hidden in
-  the tray and runs the update/fetches silently, instead of always opening
-  a window at login. Closing the window ("Hide to Tray") hides it instead
-  of quitting; a new "Quit Zarya" menu item is the real way to exit. Click
-  the tray icon to show/hide the window.
-- Weather (including alerts and AQHI) now auto-refreshes every hour.
-
-## [0.3.0] "Amber Watch" — weather alerts, AQHI, a real Cancel fix
-
-### Added
-
-- Environment Canada weather alerts on the Weather panel — active
-  warnings/watches/statements near your location as a colored banner
-  (amber/red by risk), full text on hover. ECCC's MSC GeoMet OGC API,
-  Canada-only, silently empty elsewhere.
-- Current Air Quality Health Index (AQHI) next to the weather panel, from
-  the nearest ECCC monitoring station.
-- To-do sidebar now uses the Fondwave Konsole styling (cream/plum), matching
-  the update log, instead of the dark gradient card.
-
-### Fixed
-
-- Cancel sent SIGKILL, which can't be caught — it only killed the local
-  `flatpak-spawn` wrapper, leaving the real host-side zypper/flatpak process
-  running and able to hold the zypper lock for a later run. Cancel now
-  sends SIGTERM first (forwarded to the real process by flatpak-spawn and
-  pkexec), force-killing only as a 5-second fallback.
-
-## [0.2.0] "Amber Horizon" — weather polish, to-do sidebar, notifications
-
-### Added
-
-- Weather panel shows current temperature and "feels like" (Open-Meteo's
-  apparent temperature — covers wind chill and heat index year-round) at the
-  top right.
-- Weather's hourly table has a frozen left label column, scrolls horizontally
-  on a plain mouse wheel, and auto-centers on the current hour whenever it
-  loads or refreshes. Numbers use tabular figures for clean alignment.
-- The update log is now its own collapsible section.
-- A persistent to-do sidebar (Fondwave-styled): add/check-off/remove, saved
-  to config.
-- A desktop notification when an update finishes, success or failure.
-- A run-history strip (last 14 runs) and a best-effort update summary line
-  parsed from zypper/flatpak output.
-- Backups section shows each job's next scheduled run; every status now
-  pairs a colored label with an icon, not color alone (Backups and Today's
-  Events both) — matching the accessibility commitments published on
-  calstfrancis.github.io.
-- A "Preview" button that dry-runs `zypper dup`.
-- A "What's New" panel (hamburger menu) rendering `CHANGELOG.md` live.
-- "Today's Events" renamed to "Today's Events & Due Dates".
-
-### Fixed
-
-- A real crash: `keyring.py` let a `GLib.Error` from the Secret Service
-  escape uncaught whenever it wasn't reachable — a lookup at
-  window-construction time could crash the app on launch. Found via a
-  headless smoke test.
-- The current-temp/feels-like label wasn't cleared when the location was
-  blank.
-
-## [0.1.0] "Coral Dawn" — first release
-
-A daily update runner (zypper + flatpak, one password prompt) that grew into
-a small morning dashboard.
-
-### Added
-
-- Runs `zypper ref && zypper dup` and `flatpak update` (both user and
-  system-wide installs) with a single graphical `pkexec` password prompt,
-  live output in a window, and a Cancel button.
-- Skips re-running if already updated today, with a persistent success/failure
-  status row that survives restarts.
-- Optional "Start at login" toggle (writes a plain XDG autostart entry).
-- First-run onboarding wizard: set your city and optionally connect Google
-  Calendar, both skippable, shown once.
-- Daily weather report ([Open-Meteo](https://open-meteo.com/), no API key) as
-  an hourly numbers table — temperature, humidity, rain % — in a card styled
-  with the Fondwave palette, °C by default.
-- Backups section reading [Pereprava](https://github.com/calstfrancis/pereprava)'s
-  job status via `systemctl --user` (through `flatpak-spawn --host`), with a
-  button to open Pereprava directly.
-- Today's Events section backed by Google Calendar — OAuth2 with PKCE, only a
-  read-only refresh token stored, in the system keyring.
-- Weather, Backups, and Today's Events are collapsible sections, each with a
-  status icon reflecting whether the last fetch (or, for Backups, every job)
-  succeeded or failed.
-- Update log styled with the Fondwave Konsole colorscheme (reproduced in CSS,
-  no dependency on that profile being installed), sized to be readable by
-  default.
-- Synthwave sunset app icon in Fondwave colors.
-
-### Fixed
-
-- The update run no longer hangs between the zypper and flatpak steps —
-  completion is now keyed on the subprocess actually exiting, not on its
-  stdout pipe reaching EOF, which zypper/rpm could leave open indefinitely
-  via a forked helper (e.g. gpg-agent).
-- `flatpak update` no longer fails on system-wide installs with "Deploy not
-  allowed for user" — the system-flatpak update now runs inside the same
-  privileged `pkexec` step as zypper, since it needs the same authority.
+See [CHANGELOG.md](CHANGELOG.md) for the complete history.
