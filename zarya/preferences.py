@@ -7,7 +7,7 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Adw, GLib, Gtk
 
-from . import google_calendar, keyring
+from . import google_calendar, keyring, system_updates
 
 
 class PreferencesWindow(Adw.PreferencesWindow):
@@ -73,8 +73,38 @@ class PreferencesWindow(Adw.PreferencesWindow):
 
         self.add(calendar_page)
 
+        updates_page = Adw.PreferencesPage(title="Updates", icon_name="software-update-available-symbolic")
+        updates_group = Adw.PreferencesGroup(
+            title="Unattended Daily Updates",
+            description=(
+                "Runs zypper + the system flatpak update on their own, once a day, "
+                "with no password prompt — via a root-owned systemd timer, set up "
+                "with one password prompt now. “Run Now” in the main window "
+                "is unaffected and still prompts every time, since that's a manual "
+                "action you're present for, not the unattended case this is about."
+            ),
+        )
+
+        self.updates_status_label = Gtk.Label(xalign=0, wrap=True)
+        updates_group.add(self.updates_status_label)
+
+        updates_button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8, halign=Gtk.Align.END)
+        self.updates_enable_button = Gtk.Button(label="Enable")
+        self.updates_enable_button.add_css_class("suggested-action")
+        self.updates_enable_button.connect("clicked", self.on_updates_enable_clicked)
+        updates_button_row.append(self.updates_enable_button)
+
+        self.updates_disable_button = Gtk.Button(label="Disable")
+        self.updates_disable_button.connect("clicked", self.on_updates_disable_clicked)
+        updates_button_row.append(self.updates_disable_button)
+
+        updates_group.add(updates_button_row)
+        updates_page.add(updates_group)
+        self.add(updates_page)
+
         self._refresh_calendar_status()
         self._refresh_calendars_list()
+        self._refresh_updates_status()
 
     def _refresh_calendar_status(self):
         connected = bool(keyring.lookup_google_refresh_token())
@@ -160,6 +190,44 @@ class PreferencesWindow(Adw.PreferencesWindow):
             next_child = child.get_next_sibling()
             box.remove(child)
             child = next_child
+
+    def _refresh_updates_status(self):
+        self.updates_status_label.set_label("Checking…")
+        self.updates_enable_button.set_sensitive(False)
+        self.updates_disable_button.set_sensitive(False)
+        system_updates.check_installed(self._on_updates_status_checked)
+
+    def _on_updates_status_checked(self, installed):
+        if installed:
+            self.updates_status_label.set_label("Enabled — runs daily at 04:00, catching up after sleep.")
+        else:
+            self.updates_status_label.set_label("Not set up yet. “Run Now” in the main window works either way.")
+        self.updates_enable_button.set_sensitive(not installed)
+        self.updates_disable_button.set_sensitive(installed)
+
+    def on_updates_enable_clicked(self, _button):
+        self.updates_enable_button.set_sensitive(False)
+        self.updates_status_label.set_label("Setting up… enter your password when prompted.")
+        system_updates.enable(self._on_updates_enable_done)
+
+    def _on_updates_enable_done(self, success, error):
+        if not success:
+            self.updates_status_label.set_label(f"Couldn't set up: {error}")
+            self.updates_enable_button.set_sensitive(True)
+            return
+        self._refresh_updates_status()
+
+    def on_updates_disable_clicked(self, _button):
+        self.updates_disable_button.set_sensitive(False)
+        self.updates_status_label.set_label("Removing… enter your password when prompted.")
+        system_updates.disable(self._on_updates_disable_done)
+
+    def _on_updates_disable_done(self, success, error):
+        if not success:
+            self.updates_status_label.set_label(f"Couldn't remove: {error}")
+            self.updates_disable_button.set_sensitive(True)
+            return
+        self._refresh_updates_status()
 
     def on_weather_save(self, _button):
         old_location = self.config.get("location", "")

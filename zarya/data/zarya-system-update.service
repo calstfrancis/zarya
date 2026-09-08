@@ -1,0 +1,17 @@
+[Unit]
+Description=Zarya: zypper refresh/dist-upgrade + system flatpak update
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# The system flatpak update has been observed to fail intermittently right
+# after zypper succeeds (looked like a transient issue, not a real failure) —
+# one retry, matching the behavior Zarya's own Python code used to implement
+# with a second pkexec call. zypper itself is not retried: a real zypper
+# failure (broken repo, dependency conflict) should surface immediately, not
+# be masked by a retry.
+ExecStart=/bin/sh -c 'zypper --non-interactive ref && zypper --non-interactive dup && (flatpak update --system -y || flatpak update --system -y)'
+# Cancel (systemctl stop) should return control to Zarya quickly rather than
+# waiting out systemd's 90s default.
+TimeoutStopSec=10

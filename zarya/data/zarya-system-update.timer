@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily trigger for Zarya's system update
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+# Catches up on the next boot/wake if the machine was suspended or off at
+# 04:00 — this is the systemd-native version of the polling workaround
+# Zarya's own code used to need (see CLAUDE.md's "Autorun reliability" note)
+# now that the trigger lives here instead of in the app.
+Persistent=true
+RandomizedDelaySec=15min
+
+[Install]
+WantedBy=timers.target

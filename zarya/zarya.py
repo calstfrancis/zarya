@@ -12,13 +12,24 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import __version__, backup_status, changelog, google_calendar, keyring, styles, system_health, tray, weather, weather_alerts, weather_aqi
+from . import __version__, backup_status, changelog, google_calendar, keyring, styles, system_health, system_updates, tray, weather, weather_alerts, weather_aqi
 from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
 from .todo_sidebar import TodoSidebar
 from .weather_table import WeatherTable
 
 APP_ID = "io.github.calstfrancis.zarya"
+
+# The root-owned systemd unit + timer, set up in-app via Preferences > Updates
+# (see system_updates.py — one pkexec prompt, no separate script to run) — it
+# runs the actual zypper/system-flatpak update on its own schedule, with no
+# password prompt and no involvement from Zarya at all. Zarya only ever
+# *reads* this unit's status here (to avoid redundantly re-running, and to
+# reflect a timer-triggered run in its own history/notifications) — "Run Now"
+# still goes through the original pkexec prompt unchanged, since that's a
+# deliberate manual action, not the unattended case this exists to fix. See
+# zarya/CLAUDE.md's "Passwordless daily updates".
+SYSTEM_UPDATE_UNIT = system_updates.SYSTEM_UPDATE_SERVICE
 
 # --background: launched from the autostart entry, not by the user directly —
 # stay hidden in the tray and only run the update/fetches, rather than
@@ -138,6 +149,48 @@ def summarize_updates(text):
     return " · ".join(parts) if parts else None
 
 
+_UNIT_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _check_unit_already_ran_today(unit, callback):
+    """Async: callback(ran_today, succeeded), read from systemd's own record
+    of `unit`'s last completed run. Lets Zarya avoid redundantly re-running
+    (and correctly reflect in its own history/notifications) a system update
+    the root timer already did today on its own, without Zarya triggering it.
+    Degrades gracefully to (False, False) if the unit was never installed at
+    all (Preferences > Updates > Enable not yet clicked) — `systemctl show`
+    on an unknown unit name still succeeds, just with empty properties, so
+    no separate existence check is needed before calling this."""
+    launcher = Gio.SubprocessLauncher.new(
+        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE
+    )
+    try:
+        proc = launcher.spawnv([
+            "flatpak-spawn", "--host", "systemctl", "show", unit,
+            "--property=Result,ExecMainExitTimestamp",
+        ])
+    except GLib.Error:
+        callback(False, False)
+        return
+
+    def on_done(source, result):
+        try:
+            _ok, stdout, _stderr = source.communicate_utf8_finish(result)
+        except GLib.Error:
+            callback(False, False)
+            return
+        props = {}
+        for line in stdout.splitlines():
+            if "=" in line:
+                k, _, v = line.partition("=")
+                props[k] = v
+        m = _UNIT_DATE_RE.search(props.get("ExecMainExitTimestamp", ""))
+        ran_today = bool(m) and m.group(0) == datetime.date.today().isoformat()
+        callback(ran_today, ran_today and props.get("Result") == "success")
+
+    proc.communicate_utf8_async(None, None, on_done)
+
+
 STATE_COLORS = {
     "ok": "success",
     "failed": "error",
@@ -175,6 +228,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.set_default_size(980, 780)
 
         self.proc = None
+        self._phase = None
+        self._interactive = True
         self.weather_data = None
         self.config = load_config()
         self.quitting = False
@@ -424,7 +479,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             and autostart_path().exists()
             and not self.already_ran_today()
         ):
-            self.start_updates()
+            self.start_updates(interactive=False)
         return True
 
     def _make_section(self, key, title, content, on_refresh=None, extra_button=None, show_icon=True):
@@ -1115,17 +1170,20 @@ class ZaryaWindow(Adw.ApplicationWindow):
             return
         self.logline("")
         self.logline("--- cancelling… ---")
+        if self._phase == "checking":
+            # Just the async systemd status check running — nothing external
+            # started yet, and it finishes on its own in well under a second.
+            return
         proc = self.proc
         try:
-            # SIGTERM, not force_exit()/SIGKILL: the real zypper/flatpak
-            # command runs on the *host*, reached via flatpak-spawn --host.
-            # SIGKILL can never be caught, so it only kills the local
-            # flatpak-spawn wrapper — the host-side pkexec/zypper process
-            # would be orphaned and keep running, invisibly, and could hold
-            # the zypper lock for a subsequent "Run Anyway". SIGTERM is
-            # catchable, so flatpak-spawn forwards it to the host process
-            # (and pkexec forwards it again to its child) before this
-            # process exits.
+            # SIGTERM, not force_exit()/SIGKILL: the real command runs on the
+            # *host*, reached via flatpak-spawn --host. SIGKILL can never be
+            # caught, so it only kills the local flatpak-spawn wrapper — the
+            # host-side pkexec/zypper process would be orphaned and keep
+            # running invisibly, and could hold the zypper lock for a
+            # subsequent "Run Anyway". SIGTERM is catchable, so flatpak-spawn
+            # forwards it to the host process (and pkexec forwards it again
+            # to its child) before this process exits.
             proc.send_signal(15)
         except GLib.Error as e:
             self.logline(f"[cancel error: {e}]")
@@ -1147,16 +1205,50 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     _ZYPPER_DONE_MARKER = "__ZARYA_ZYPPER_DONE__"
 
-    def start_updates(self):
+    def start_updates(self, interactive=True):
+        """interactive=True (the "Run Now" button): always completes today's
+        update, prompting via pkexec if the privileged part hasn't already
+        been done today by the root timer (see system_updates.py and
+        zarya/CLAUDE.md) — this is a deliberate manual click, so a password
+        prompt here is normal and expected, same as it always was.
+
+        interactive=False (the silent background poll, _maybe_autorun): NEVER
+        prompts. If the root timer already did the privileged part today, it
+        finishes the loop with the unprivileged flatpak --user step and marks
+        the day done, silently. If the timer hasn't run yet, it does nothing
+        and waits for the next poll — Zarya itself no longer force-triggers
+        a password prompt in the background, which was the actual complaint
+        Preferences > Updates' timer exists to fix."""
         if self.proc is not None:
             return
         self.buffer.set_text("")
-        self._set_running(True)
-        self._system_flatpak_retried = False
-        self._saw_hidden_marker = False
-        self.status_label.set_label("Updating…")
+        self.proc = True  # busy sentinel until the async status check resolves
+        self._phase = "checking"
+        self._interactive = interactive
+        self._set_running(interactive)
+        if interactive:
+            self.status_label.set_label("Checking…")
         self.logline(f"=== Zarya update: {self.today_str()} ===")
         self.logline("")
+        _check_unit_already_ran_today(SYSTEM_UPDATE_UNIT, self._on_daily_status_checked)
+
+    def _on_daily_status_checked(self, ran_today, succeeded_today):
+        if ran_today and succeeded_today:
+            self.logline("--- system update already completed today (daily timer) — skipping ---")
+            self.on_privileged_done(True, 0)
+            return
+        if not self._interactive:
+            # Background poll, and the timer hasn't done today's privileged
+            # part yet — don't prompt on our own. Just leave things be;
+            # either the timer catches up shortly, or Cal clicks Run Now.
+            self.proc = None
+            self._phase = None
+            self._set_running(False)
+            return
+        self._system_flatpak_retried = False
+        self._saw_hidden_marker = False
+        self._phase = "privileged"
+        self.status_label.set_label("Updating…")
         self.logline("--- zypper refresh + dist-upgrade + system flatpaks (enter your password when prompted) ---")
         self.run_step(
             [
@@ -1189,6 +1281,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.logline(f"zypper/system-flatpak step failed (exit status {exit_status}).")
             self.finish(success=False)
             return
+        self._phase = "unprivileged"
+        if self._interactive:
+            self.status_label.set_label("Updating…")
         self.logline("--- flatpak update (user installs) ---")
         self.run_step(
             ["flatpak-spawn", "--host", "flatpak", "update", "--user", "-y"],
@@ -1203,6 +1298,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def finish(self, success):
         self.proc = None
+        self._phase = None
         self._set_running(False)
         save_result(success)
         append_history(success)

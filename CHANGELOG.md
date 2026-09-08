@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0] — dev
+
+- Added: the automatic daily update no longer pops a password prompt.
+  One-time setup, entirely in-app: Preferences > Updates > Enable — one
+  `pkexec` prompt, no terminal, no separate script. Installs a root-owned
+  `zarya-system-update.service` + `.timer` (fires daily at 04:00, catches
+  up after suspend via `Persistent=true`) that runs zypper/system-flatpak
+  entirely on its own — no polkit rule, no user-triggerable action for this
+  case at all. "Run Now" is deliberately unchanged and still prompts via
+  `pkexec`, same as always, since that's a manual action you're present
+  for, not the unattended case this was about. Zarya's background poll now
+  only checks whether the timer already handled today (via
+  `systemctl show`, no privilege needed) and, if not, just waits for the
+  next poll instead of prompting on its own. See `zarya/system_updates.py`
+  and the "Passwordless daily updates" section in `zarya/CLAUDE.md` for
+  the full design.
+
 ## [0.11.1] "Steady Link" — fix the "Open Pereprava" button doing nothing
 
 - Fixed: the "Open Pereprava" button in the Backups section did nothing on a

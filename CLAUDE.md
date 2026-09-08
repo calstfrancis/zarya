@@ -37,7 +37,8 @@ Single source of truth: `version` in `pyproject.toml`, mirrored in `zarya/__init
 |---|---|
 | `zarya/zarya.py` | Entry point — `ZaryaApplication`/`ZaryaWindow`, the update run state machine, section building (`_make_section`), config/marker/result I/O |
 | `zarya/onboarding.py` | First-run wizard (`OnboardingWindow`) — city + optional Google Account connect, gated on `config["onboarded"]` |
-| `zarya/preferences.py` | `PreferencesWindow` — Weather (location/units), Google (connect/disconnect, covers Calendar + Tasks), and a live-fetched calendar checklist (`config["calendar_ids"]`) |
+| `zarya/preferences.py` | `PreferencesWindow` — Weather (location/units), Google (connect/disconnect, covers Calendar + Tasks), a live-fetched calendar checklist (`config["calendar_ids"]`), and Updates (Enable/Disable the passwordless daily timer, via `system_updates.py`) |
+| `zarya/system_updates.py` | Installs/removes the root systemd unit + timer for passwordless daily updates — see **Passwordless daily updates** below |
 | `zarya/weather.py` | Open-Meteo geocoding + hourly forecast + current/apparent temperature fetch, stdlib `urllib` only |
 | `zarya/weather_table.py` | `WeatherTable` — hourly numbers grid (not a chart; see **Weather chart history** below) |
 | `zarya/weather_alerts.py` | Environment Canada active alerts (ECCC MSC GeoMet OGC API, `weather-alerts` collection), bbox-around-point query |
@@ -55,10 +56,75 @@ Single source of truth: `version` in `pyproject.toml`, mirrored in `zarya/__init
 
 Every privileged or host-state operation goes through it, never a bundled
 helper binary:
-- `pkexec sh -c "zypper ref && zypper dup -y && flatpak update --system -y"` — one prompt, one root shell. System flatpak updates are folded in here because they need the same polkit authority zypper does; running `flatpak update --system` unprivileged fails with "Deploy not allowed for user".
+- `pkexec sh -c "zypper ref && zypper dup -y && flatpak update --system -y"` — one prompt, one root shell, for "Run Now"/manual updates. See **Passwordless daily updates** below for why the *automatic* daily case doesn't go through this at all anymore.
 - `flatpak update --user -y` — unprivileged, separate step.
 - `systemctl --user show/list-timers` and reading `~/.config/pereprava/jobs/*.json` — via an embedded script (`backup_status._STATUS_SCRIPT`) run once with `python3 -c`, rather than multiple round-trips.
 - `flatpak run io.github.calstfrancis.pereprava` — launched fire-and-forget by the Backups section's link-out button. Not the bare `pereprava` command: that only exists on PATH for the install-script distribution (`~/.local/bin`), which `flatpak-spawn --host` doesn't reliably see — a real bug (0.11.1) where the button did nothing at all, no error, since the host command failed silently with no output captured to report it. `flatpak run <app-id>` doesn't depend on PATH.
+
+## Passwordless daily updates (0.12.0)
+
+`_maybe_autorun()`'s background poll used to call the same `pkexec`-prompted
+`start_updates()` as the "Run Now" button, so the *automatic* daily update
+popped a graphical password prompt too — genuinely unattended in name only.
+Cal asked to fix that specifically, **not** to also make manual updates
+passwordless (an earlier version of this feature did that via a polkit rule
+scoped to one systemd unit, letting "Run Now" call `systemctl start`
+without a password — reverted per feedback: that's more power than asked
+for, since a polkit rule authorizes *any process running as Cal's user*,
+not "Zarya specifically," and there was no need to remove the prompt from a
+deliberate manual click in the first place).
+
+What's actually here:
+- **`zarya/data/zarya-system-update.service`** — a root-owned `Type=oneshot`
+  systemd *system* unit running
+  `zypper ref && zypper dup && (flatpak update --system -y || flatpak update --system -y)`
+  (the `||` retry is the same flatpak-transient-failure retry that used to
+  live in `zarya.py`'s Python, folded into the unit's shell command instead).
+- **`zarya/data/zarya-system-update.timer`** — fires it daily at 04:00 with
+  `Persistent=true`, the systemd-native version of the polling workaround
+  described in **Autorun reliability** below: it catches up on the next
+  boot/wake if the machine was suspended at 04:00, no app code needed. This
+  is a fully independent trigger — root's own timer runs the update whether
+  or not Zarya is even open, with **no polkit rule and no user-triggerable
+  action involved at all** for this routine case.
+- **`zarya/system_updates.py`** + **Preferences > Updates** — the one-time
+  root setup, done *in the app*, not via a separate shell script someone has
+  to find and know to run. Clicking "Enable" reads the two bundled unit
+  files' bytes (they ship as package data, so they're inside the flatpak's
+  own `/app`, which Python can read but the *host* can't see at all) and
+  pipes them, over stdin, to a single `flatpak-spawn --host pkexec sh` —
+  writing both files via quoted heredocs (`<<'ZARYA_UNIT_EOF'`, so content
+  is never shell-interpreted), then `daemon-reload` + `enable --now`. One
+  password prompt, no terminal, no file for anyone to go find. "Disable"
+  reverses it (`systemctl disable --now` + `rm` the two files). Both are a
+  single `pkexec` call each — see `system_updates.py`'s `enable()`/`disable()`.
+
+**`start_updates(interactive=...)`** in `zarya.py` is the one entry point
+for both callers, and the flag is the entire behavioral difference:
+- `interactive=True` (the Run Now button, `on_run_clicked`): always
+  completes today's update. First checks (via `_check_unit_already_ran_today()`,
+  see below) whether the root timer already did the privileged part today —
+  if so, skips straight to the unprivileged `flatpak update --user` step;
+  if not, runs the **original, unmodified pkexec chain**, prompting exactly
+  as it always has. A manual click is a deliberate, in-person action — a
+  password prompt there is normal and was never the problem.
+- `interactive=False` (`_maybe_autorun`'s poll): **never prompts.** If the
+  timer already did the privileged part today, silently finishes with just
+  the unprivileged flatpak step and marks the day done (notification, history,
+  the works — same as any other completed run). If the timer hasn't run
+  yet, it does nothing this poll and waits for the next one — Zarya no
+  longer force-triggers a password prompt from the background under any
+  circumstance. That's the actual fix; everything else here just supports it.
+
+**`_check_unit_already_ran_today()`** queries
+`systemctl show zarya-system-update.service --property=Result,ExecMainExitTimestamp`
+before either path decides what to do. This is a read-only status query
+(no polkit action, no privilege needed) and degrades gracefully to
+`(False, False)` if the unit was never installed at all — `systemctl show`
+on an unknown unit name still succeeds, just with empty properties — so
+Zarya needs no separate "is this even set up" check, and the pkexec path
+works completely unchanged on a machine where Preferences > Updates >
+Enable was never clicked.
 
 ## Completion must be keyed on process exit, not stdout EOF
 
@@ -161,6 +227,15 @@ and silently keeps launching with the old `Exec=` line forever. Fixed with
 file if it's out of sync with the current template. Any future change to
 `AUTOSTART_CONTENT` self-heals on the next launch instead of needing users
 to re-toggle the switch.
+
+Since 0.12.0 (see **Passwordless daily updates** above), once Preferences >
+Updates > Enable has been clicked, `zarya-system-update.timer`'s own
+`Persistent=true` independently solves the exact same suspend/resume
+gap this section describes — for the *system* part specifically. This
+5-minute poll is still what's actually responsible for the unprivileged
+`flatpak update --user` half (which the root timer doesn't cover) and
+remains the whole mechanism on a machine where `install.sh` hasn't been run
+yet — kept as-is, not replaced.
 
 ## Window layout — scrollable content, pinned action bar
 
