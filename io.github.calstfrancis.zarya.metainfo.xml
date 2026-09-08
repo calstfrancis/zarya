@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.11.1" date="2026-09-08">
+      <description>
+        <p>
+          "Steady Link". Fixes the "Open Pereprava" button in the Backups
+          section doing nothing on a flatpak install of Pereprava — it now
+          launches via <code>flatpak run</code> instead of a bare command
+          that only existed on PATH for a different install method.
+        </p>
+      </description>
+    </release>
     <release version="0.11.0" date="2026-09-01">
       <description>
         <p>

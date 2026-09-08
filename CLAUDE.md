@@ -58,7 +58,7 @@ helper binary:
 - `pkexec sh -c "zypper ref && zypper dup -y && flatpak update --system -y"` — one prompt, one root shell. System flatpak updates are folded in here because they need the same polkit authority zypper does; running `flatpak update --system` unprivileged fails with "Deploy not allowed for user".
 - `flatpak update --user -y` — unprivileged, separate step.
 - `systemctl --user show/list-timers` and reading `~/.config/pereprava/jobs/*.json` — via an embedded script (`backup_status._STATUS_SCRIPT`) run once with `python3 -c`, rather than multiple round-trips.
-- `pereprava` — launched directly (fire-and-forget `Gio.Subprocess`) by the Backups section's link-out button.
+- `flatpak run io.github.calstfrancis.pereprava` — launched fire-and-forget by the Backups section's link-out button. Not the bare `pereprava` command: that only exists on PATH for the install-script distribution (`~/.local/bin`), which `flatpak-spawn --host` doesn't reliably see — a real bug (0.11.1) where the button did nothing at all, no error, since the host command failed silently with no output captured to report it. `flatpak run <app-id>` doesn't depend on PATH.
 
 ## Completion must be keyed on process exit, not stdout EOF
 

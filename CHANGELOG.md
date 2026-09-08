@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.1] "Steady Link" — fix the "Open Pereprava" button doing nothing
+
+- Fixed: the "Open Pereprava" button in the Backups section did nothing on a
+  flatpak install of Pereprava. It ran `pereprava` via `flatpak-spawn --host`,
+  but that binary only exists on PATH for the install-script distribution
+  (`~/.local/bin`), which `flatpak-spawn --host` doesn't reliably see — the
+  host command failed silently with no output captured to report it. Now
+  launches via `flatpak run io.github.calstfrancis.pereprava` instead, which
+  doesn't depend on PATH.
+
 ## [0.11.0] "Clear Signal" — beautified What's New, fixed missing System Health icons, autostart on by default
 
 - Added: "Start at login" now switches on automatically the first time

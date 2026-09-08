@@ -695,9 +695,15 @@ class ZaryaWindow(Adw.ApplicationWindow):
     # --- backups ---
 
     def on_open_pereprava_clicked(self, _button):
+        # "pereprava" is only on PATH for the install-script distribution
+        # (~/.local/bin), and flatpak-spawn --host doesn't reliably see that
+        # directory — the button silently did nothing on a flatpak install of
+        # Pereprava. `flatpak run <app-id>` doesn't depend on PATH at all, and
+        # matches how Zarya's own autostart entry launches itself.
         try:
             Gio.Subprocess.new(
-                ["flatpak-spawn", "--host", "pereprava"], Gio.SubprocessFlags.NONE
+                ["flatpak-spawn", "--host", "flatpak", "run", "io.github.calstfrancis.pereprava"],
+                Gio.SubprocessFlags.NONE,
             )
         except GLib.Error as e:
             self.toast_overlay.add_toast(Adw.Toast(title=f"Couldn't open Pereprava: {e}"))
