@@ -2,16 +2,43 @@
 Description=Zarya: zypper refresh/dist-upgrade + system flatpak update
 Wants=network-online.target
 After=network-online.target
+# Retry a few times, 30s apart, before giving up. `network-online.target`
+# being "reached" doesn't reliably mean DNS/real connectivity is actually
+# working yet — found live (2026-09-09): the Persistent=true catch-up run
+# below fired within seconds of waking from suspend and failed instantly
+# with DNS resolution errors across every configured repo ("Could not
+# resolve host: cdn.opensuse.org" etc.), even though network-online.target
+# was already considered reached. 30s x up to 5 attempts gives the network
+# a real chance to actually come up post-resume without retrying forever if
+# it's a genuine, non-transient failure (a broken repo, a real conflict).
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
 Type=oneshot
 # The system flatpak update has been observed to fail intermittently right
 # after zypper succeeds (looked like a transient issue, not a real failure) —
 # one retry, matching the behavior Zarya's own Python code used to implement
-# with a second pkexec call. zypper itself is not retried: a real zypper
-# failure (broken repo, dependency conflict) should surface immediately, not
-# be masked by a retry.
+# with a second pkexec call. zypper itself is not retried inline here since
+# the [Unit] Restart= above already covers a real zypper failure (network
+# not ready yet) by re-running the whole thing.
 ExecStart=/bin/sh -c 'zypper --non-interactive ref && zypper --non-interactive dup && (flatpak update --system -y || flatpak update --system -y)'
+Restart=on-failure
+RestartSec=30
+# Plain, world-readable log file instead of relying on the journal — reading
+# a root-owned unit's journal entries needs the `systemd-journal` group,
+# which nothing here grants (deliberately: the group grant would apply to
+# the whole system journal, a much broader read than this one unit's own
+# output needs — see zarya/CLAUDE.md's "Passwordless daily updates" for the
+# same reasoning applied to the polkit rule this feature deliberately
+# doesn't have). A plain file this service creates itself, at its own
+# default (root) umask, is readable by anyone without any extra permission
+# grant at all. Found live: a user diagnosing a real failure hit "-- No
+# entries --" from a plain `journalctl -u zarya-system-update.service` for
+# exactly this reason, forcing a `sudo journalctl` detour that shouldn't be
+# necessary just to read this one unit's own routine output.
+StandardOutput=append:/var/log/zarya-system-update.log
+StandardError=append:/var/log/zarya-system-update.log
 # Cancel (systemctl stop) should return control to Zarya quickly rather than
 # waiting out systemd's 90s default.
 TimeoutStopSec=10

@@ -195,14 +195,35 @@ class PreferencesWindow(Adw.PreferencesWindow):
         self.updates_status_label.set_label("Checking…")
         self.updates_enable_button.set_sensitive(False)
         self.updates_disable_button.set_sensitive(False)
-        system_updates.check_installed(self._on_updates_status_checked)
+        system_updates.get_status(self._on_updates_status_checked)
 
-    def _on_updates_status_checked(self, installed):
-        if installed:
-            self.updates_status_label.set_label("Enabled — runs daily at 04:00, catching up after sleep.")
-        else:
+    def _on_updates_status_checked(self, status):
+        installed = status["installed"]
+        if not installed:
             self.updates_status_label.set_label("Not set up yet. “Run Now” in the main window works either way.")
-        self.updates_enable_button.set_sensitive(not installed)
+        elif status["last_trigger"] is None:
+            # Enabled, but the timer has never actually fired yet — normal
+            # right after clicking Enable if 04:00 hasn't come around (or
+            # gone by, via the Persistent catch-up) since.
+            next_text = f" Next run: {status['next_trigger']}." if status["next_trigger"] else ""
+            self.updates_status_label.set_label(f"Enabled — hasn't run yet.{next_text}")
+        elif status["last_result"] == "success":
+            self.updates_status_label.set_label(f"Enabled — last ran {status['last_trigger']}, succeeded.")
+        else:
+            self.updates_status_label.set_label(
+                f"Enabled — last ran {status['last_trigger']}, but it "
+                f"failed ({status['last_result'] or 'unknown result'}). "
+                "See /var/log/zarya-system-update.log for details — that's a "
+                "plain file anyone can read, unlike journalctl, which needs "
+                "the systemd-journal group for a root-owned unit's output."
+            )
+        # Enable stays clickable even when already installed — it's what
+        # re-syncs the on-disk unit files with whatever Zarya currently
+        # bundles, e.g. after an app update ships a fixed unit file. Without
+        # this, picking up such a fix would need a Disable-then-Enable dance
+        # with no indication that was necessary.
+        self.updates_enable_button.set_sensitive(True)
+        self.updates_enable_button.set_label("Reinstall" if installed else "Enable")
         self.updates_disable_button.set_sensitive(installed)
 
     def on_updates_enable_clicked(self, _button):

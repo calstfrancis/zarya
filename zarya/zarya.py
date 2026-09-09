@@ -20,17 +20,6 @@ from .weather_table import WeatherTable
 
 APP_ID = "io.github.calstfrancis.zarya"
 
-# The root-owned systemd unit + timer, set up in-app via Preferences > Updates
-# (see system_updates.py — one pkexec prompt, no separate script to run) — it
-# runs the actual zypper/system-flatpak update on its own schedule, with no
-# password prompt and no involvement from Zarya at all. Zarya only ever
-# *reads* this unit's status here (to avoid redundantly re-running, and to
-# reflect a timer-triggered run in its own history/notifications) — "Run Now"
-# still goes through the original pkexec prompt unchanged, since that's a
-# deliberate manual action, not the unattended case this exists to fix. See
-# zarya/CLAUDE.md's "Passwordless daily updates".
-SYSTEM_UPDATE_UNIT = system_updates.SYSTEM_UPDATE_SERVICE
-
 # --background: launched from the autostart entry, not by the user directly —
 # stay hidden in the tray and only run the update/fetches, rather than
 # popping a window open at every login. A manual `flatpak run` (no flag)
@@ -149,46 +138,18 @@ def summarize_updates(text):
     return " · ".join(parts) if parts else None
 
 
-_UNIT_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
-
-
-def _check_unit_already_ran_today(unit, callback):
-    """Async: callback(ran_today, succeeded), read from systemd's own record
-    of `unit`'s last completed run. Lets Zarya avoid redundantly re-running
-    (and correctly reflect in its own history/notifications) a system update
-    the root timer already did today on its own, without Zarya triggering it.
-    Degrades gracefully to (False, False) if the unit was never installed at
-    all (Preferences > Updates > Enable not yet clicked) — `systemctl show`
-    on an unknown unit name still succeeds, just with empty properties, so
-    no separate existence check is needed before calling this."""
-    launcher = Gio.SubprocessLauncher.new(
-        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE
-    )
-    try:
-        proc = launcher.spawnv([
-            "flatpak-spawn", "--host", "systemctl", "show", unit,
-            "--property=Result,ExecMainExitTimestamp",
-        ])
-    except GLib.Error:
-        callback(False, False)
-        return
-
-    def on_done(source, result):
-        try:
-            _ok, stdout, _stderr = source.communicate_utf8_finish(result)
-        except GLib.Error:
-            callback(False, False)
-            return
-        props = {}
-        for line in stdout.splitlines():
-            if "=" in line:
-                k, _, v = line.partition("=")
-                props[k] = v
-        m = _UNIT_DATE_RE.search(props.get("ExecMainExitTimestamp", ""))
-        ran_today = bool(m) and m.group(0) == datetime.date.today().isoformat()
-        callback(ran_today, ran_today and props.get("Result") == "success")
-
-    proc.communicate_utf8_async(None, None, on_done)
+def _check_unit_already_ran_today(callback):
+    """Async: callback(ran_today, succeeded) for the passwordless-update
+    timer's last completed run (see system_updates.py's SYSTEM_UPDATE_*
+    constants and "Passwordless daily updates" in zarya/CLAUDE.md) — a thin
+    wrapper around system_updates.get_status(), the single source of truth
+    for reading this unit's state (also used by Preferences > Updates' own
+    status display). Zarya only ever *reads* this — the root-owned timer
+    runs the actual update on its own schedule, with no password prompt and
+    no involvement from Zarya at all; "Run Now" still goes through the
+    original pkexec prompt unchanged, since that's a deliberate manual
+    action, not the unattended case this exists to fix."""
+    system_updates.get_status(lambda status: callback(status["ran_today"], status["succeeded_today"]))
 
 
 STATE_COLORS = {
@@ -1239,7 +1200,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             # water down an explicit "do it again" request into a no-op.
             self._on_daily_status_checked(False, False)
             return
-        _check_unit_already_ran_today(SYSTEM_UPDATE_UNIT, self._on_daily_status_checked)
+        _check_unit_already_ran_today(self._on_daily_status_checked)
 
     def _on_daily_status_checked(self, ran_today, succeeded_today):
         if ran_today and succeeded_today:

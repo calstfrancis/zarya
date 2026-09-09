@@ -39,6 +39,19 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.12.2" date="2026-09-09">
+      <description>
+        <p>
+          "True North". Fixes the daily update timer failing instantly
+          right after waking from suspend, with DNS errors across every
+          repo — it now retries a few times, 30 seconds apart. Also fixes
+          a failed run's error being invisible without `sudo` (now also
+          logged to a plain, readable file), and "Enable" in Preferences
+          &gt; Updates becoming permanently disabled once already set up,
+          with no way to push a fix to an already-enabled machine.
+        </p>
+      </description>
+    </release>
     <release version="0.12.1" date="2026-09-08">
       <description>
         <p>

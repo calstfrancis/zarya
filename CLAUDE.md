@@ -80,6 +80,23 @@ What's actually here:
   `zypper ref && zypper dup && (flatpak update --system -y || flatpak update --system -y)`
   (the `||` retry is the same flatpak-transient-failure retry that used to
   live in `zarya.py`'s Python, folded into the unit's shell command instead).
+  `Restart=on-failure` + `RestartSec=30` + `StartLimitIntervalSec=600` /
+  `StartLimitBurst=5` (**added 0.12.2**, live bug): found in the wild — a
+  `Persistent=true` catch-up run (see the `.timer` bullet below) fired
+  within seconds of waking from suspend and failed instantly with DNS
+  resolution errors across every configured repo, because
+  `network-online.target` being "reached" doesn't reliably mean DNS/real
+  connectivity is actually working yet immediately post-resume. Up to 5
+  retries, 30s apart, gives the network a real chance to come up without
+  retrying forever if it's a genuine failure (a broken repo, a real
+  conflict). `StandardOutput=`/`StandardError=append:/var/log/zarya-system-update.log`
+  (also 0.12.2): a plain, world-readable file this service creates at its
+  own default root umask — reading a root-owned unit's *journal* entries
+  needs the `systemd-journal` group, which nothing here grants (deliberately
+  — see the polkit-rule reasoning below), so a user diagnosing a real
+  failure hit `journalctl`'s silent "-- No entries --" for exactly that
+  reason before finding the real error via `sudo journalctl`. The log file
+  sidesteps needing that group at all.
 - **`zarya/data/zarya-system-update.timer`** — fires it daily at 04:00 with
   `Persistent=true`, the systemd-native version of the polling workaround
   described in **Autorun reliability** below: it catches up on the next
@@ -98,16 +115,43 @@ What's actually here:
   password prompt, no terminal, no file for anyone to go find. "Disable"
   reverses it (`systemctl disable --now` + `rm` the two files). Both are a
   single `pkexec` call each — see `system_updates.py`'s `enable()`/`disable()`.
+  **The Enable button stays clickable even once already installed**
+  (relabels to "Reinstall") — `enable()`'s script is idempotent
+  (`systemctl enable --now` on an already-enabled timer is a safe no-op), so
+  re-clicking is how an already-set-up machine picks up a bundled unit file
+  fix (like the retry logic above) after an app update, without a
+  Disable-then-Enable dance nothing would otherwise prompt for.
+
+**`system_updates.get_status()`** is the single source of truth for reading
+this unit's state — two sequential `systemctl show` calls (the timer, then
+the service; **not** one call covering both unit names, since `systemctl
+show unit1 unit2` repeats the same property names once per unit with no
+per-unit prefix, so a naive flat-dict merge would silently let the second
+unit's values clobber the first's for any shared property name), returning
+whether it's installed, when it's next/was last triggered, the last run's
+result, and `ran_today`/`succeeded_today` convenience flags. Used by
+Preferences' status label (a real "last ran HH:MM, succeeded/failed", not
+just a static "Enabled" — added 0.12.2 after a user reported "Zarya isn't
+showing it in any way" when checking whether the timer had actually run)
+and by `zarya.py`'s `_check_unit_already_ran_today()`, a thin wrapper
+`start_updates()` uses for the dedup check below.
 
 **`start_updates(interactive=...)`** in `zarya.py` is the one entry point
 for both callers, and the flag is the entire behavioral difference:
 - `interactive=True` (the Run Now button, `on_run_clicked`): always
-  completes today's update. First checks (via `_check_unit_already_ran_today()`,
-  see below) whether the root timer already did the privileged part today —
-  if so, skips straight to the unprivileged `flatpak update --user` step;
-  if not, runs the **original, unmodified pkexec chain**, prompting exactly
-  as it always has. A manual click is a deliberate, in-person action — a
-  password prompt there is normal and was never the problem.
+  completes today's update. First checks whether the root timer already did
+  the privileged part today — if so, skips straight to the unprivileged
+  `flatpak update --user` step; if not, runs the **original, unmodified
+  pkexec chain**, prompting exactly as it always has. A manual click is a
+  deliberate, in-person action — a password prompt there is normal and was
+  never the problem. **Exception**: if Zarya's own "already updated today"
+  marker is already set (i.e. this is an explicit "Run Anyway" click, not
+  the day's first), the dedup check is skipped entirely and a real re-run is
+  always forced — a real regression, found and fixed same-day (0.12.1):
+  "Run Anyway" could otherwise silently do less than asked, quietly
+  reducing to just the flatpak step whenever the timer had already
+  succeeded that day, defeating the whole point of an explicit forced
+  re-run.
 - `interactive=False` (`_maybe_autorun`'s poll): **never prompts.** If the
   timer already did the privileged part today, silently finishes with just
   the unprivileged flatpak step and marks the day done (notification, history,
@@ -115,16 +159,6 @@ for both callers, and the flag is the entire behavioral difference:
   yet, it does nothing this poll and waits for the next one — Zarya no
   longer force-triggers a password prompt from the background under any
   circumstance. That's the actual fix; everything else here just supports it.
-
-**`_check_unit_already_ran_today()`** queries
-`systemctl show zarya-system-update.service --property=Result,ExecMainExitTimestamp`
-before either path decides what to do. This is a read-only status query
-(no polkit action, no privilege needed) and degrades gracefully to
-`(False, False)` if the unit was never installed at all — `systemctl show`
-on an unknown unit name still succeeds, just with empty properties — so
-Zarya needs no separate "is this even set up" check, and the pkexec path
-works completely unchanged on a machine where Preferences > Updates >
-Enable was never clicked.
 
 ## Completion must be keyed on process exit, not stdout EOF
 

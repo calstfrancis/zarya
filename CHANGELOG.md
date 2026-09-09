@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.12.2] "True North" — fix daily timer failing after suspend
+
+- Fixed: the daily update timer could fail instantly right after waking
+  from suspend, with DNS resolution errors across every configured repo —
+  `network-online.target` being "reached" doesn't reliably mean DNS/real
+  connectivity is actually working yet that soon after resume, and the
+  `Persistent=true` catch-up run has no reason to wait for that. The
+  service now retries up to 5 times, 30 seconds apart, before giving up.
+- Fixed: diagnosing a failed run required `sudo journalctl` — a plain
+  `journalctl -u zarya-system-update.service` as a normal user silently
+  showed "-- No entries --" with no indication why, since reading a
+  root-owned unit's journal needs the `systemd-journal` group, which this
+  feature deliberately doesn't grant (same reasoning as not installing a
+  broader polkit rule than needed). The service now also logs to a plain,
+  world-readable file (`/var/log/zarya-system-update.log`), and
+  Preferences > Updates' failure message points there instead of at
+  `journalctl`.
+- Fixed: Preferences > Updates' "Enable" button became permanently
+  disabled once already set up, with no way to push a fixed unit file (like
+  the retry logic above) to an already-enabled machine without first
+  clicking Disable. It now stays clickable (relabeled "Reinstall") and
+  re-syncs the on-disk unit files with whatever the app currently bundles.
+
 ## [0.12.1] "Steady Hours" — weather window fix, Run Anyway fix
 
 - Changed: the hourly weather table now shows the 12 hours before and 12
