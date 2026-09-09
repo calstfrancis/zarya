@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.12.3" date="2026-09-09">
+      <description>
+        <p>
+          "True Ledger". A fully-failed automatic daily update (its own
+          retries genuinely exhausted, not just between attempts) now shows
+          up in Recent Runs and sends a notification, instead of being
+          silently invisible on the dashboard.
+        </p>
+      </description>
+    </release>
     <release version="0.12.2" date="2026-09-09">
       <description>
         <p>

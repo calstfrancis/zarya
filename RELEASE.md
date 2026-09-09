@@ -1,41 +1,31 @@
-# Zarya v0.12.2 "True North"
+# Zarya v0.12.3 "True Ledger"
 
 **Released:** 2026-09-09
 
 ## What's new
 
-Found and fixed the same day, from a real report of the daily update
-appearing not to have run:
+Straight follow-up to yesterday's fix, from a direct question about how
+retries interact with the run history:
 
-- **The daily update timer could fail instantly right after waking from
-  suspend**, with DNS resolution errors across every configured repo.
-  `network-online.target` being "reached" doesn't reliably mean DNS/real
-  connectivity is actually working yet that soon after resume, and the
-  timer's suspend-catch-up behavior (`Persistent=true`) has no reason to
-  wait for that on its own. The service now retries up to 5 times, 30
-  seconds apart, before giving up — enough for the network to actually
-  come back without retrying forever on a real, non-transient failure.
-- **A failed run's real error was invisible without `sudo`.** Reading a
-  root-owned systemd unit's journal entries needs the `systemd-journal`
-  group, which this feature deliberately doesn't grant (same reasoning as
-  not installing a broader polkit rule than it needs) — so a plain
-  `journalctl -u zarya-system-update.service` silently showed "-- No
-  entries --" with no hint why. The service now also writes its own
-  output to a plain, world-readable log file
-  (`/var/log/zarya-system-update.log`), and Preferences > Updates' failure
-  message points there instead.
-- **"Enable" in Preferences > Updates became permanently disabled** once
-  already set up, with no way to push a fixed unit file (like the retry
-  logic above) to an already-enabled machine short of manually clicking
-  Disable first. It now stays clickable (relabeled "Reinstall") and
-  re-syncs the installed unit files with whatever the app currently
-  bundles — if you're upgrading from 0.12.0 or 0.12.1 and already clicked
-  Enable, click it again to pick up this fix.
+- **A fully-failed automatic daily update now shows up in Recent Runs and
+  sends a notification.** Previously, if the daily timer's own retries
+  (added in 0.12.2) genuinely exhausted and today's update never actually
+  succeeded, that failure was silently invisible on the main dashboard —
+  no failure dot, no notification, "Run Now" gave no hint anything was
+  wrong. The only place it showed at all was Preferences > Updates'
+  status text.
+- A retry still *in progress* is correctly distinguished from a *settled*
+  failure (checked via the service's own active state), so this never
+  double-counts — two failed attempts followed by a successful third one
+  still shows as exactly one success, never two pointless failures. A
+  fully exhausted failure is recorded at most once per day, and correctly
+  leaves "Run Now" available rather than flipping it to "Run Anyway",
+  since nothing actually succeeded.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases,
-including v0.12.1 "Steady Hours" (weather table now shows ±12 hours around
-now) and v0.12.0 "Silent Dawn" (passwordless daily updates, set up in
-Preferences).
+including v0.12.2 "True North" (fixed the daily timer failing right after
+waking from suspend) and v0.12.1 "Steady Hours" (weather table now shows
+±12 hours around now).
 
 ## Download
 
@@ -51,9 +41,8 @@ flatpak remote-add --user calstfrancis \
 flatpak install calstfrancis io.github.calstfrancis.zarya
 ```
 
-Already installed? `flatpak update` picks this up — and if you'd already
-enabled passwordless daily updates before this release, click "Reinstall"
-in Preferences > Updates afterward to push the retry fix to your system.
+Already installed? `flatpak update` picks this up — no unit-file changes
+this time, so no need to click "Reinstall" in Preferences > Updates.
 
 ## Running
 

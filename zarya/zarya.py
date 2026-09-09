@@ -39,6 +39,15 @@ def marker_path() -> Path:
     return Path(GLib.get_user_cache_dir()) / "zarya" / "lastrun"
 
 
+def timer_failure_marker_path() -> Path:
+    # Separate from marker_path()/mark_done(): records that today's *timer*
+    # failure has already been reported into history/notifications once,
+    # without marking the day itself "done" — a failed automatic run should
+    # still leave "Run Now" available (not flip to "Run Anyway"), since
+    # nothing actually succeeded yet.
+    return Path(GLib.get_user_cache_dir()) / "zarya" / "lasttimerfailure"
+
+
 def result_path() -> Path:
     return Path(GLib.get_user_cache_dir()) / "zarya" / "lastresult.json"
 
@@ -139,17 +148,19 @@ def summarize_updates(text):
 
 
 def _check_unit_already_ran_today(callback):
-    """Async: callback(ran_today, succeeded) for the passwordless-update
-    timer's last completed run (see system_updates.py's SYSTEM_UPDATE_*
-    constants and "Passwordless daily updates" in zarya/CLAUDE.md) — a thin
-    wrapper around system_updates.get_status(), the single source of truth
-    for reading this unit's state (also used by Preferences > Updates' own
-    status display). Zarya only ever *reads* this — the root-owned timer
-    runs the actual update on its own schedule, with no password prompt and
-    no involvement from Zarya at all; "Run Now" still goes through the
-    original pkexec prompt unchanged, since that's a deliberate manual
-    action, not the unattended case this exists to fix."""
-    system_updates.get_status(lambda status: callback(status["ran_today"], status["succeeded_today"]))
+    """Async: callback(ran_today, succeeded_today, failed_today) for the
+    passwordless-update timer's last completed run (see system_updates.py's
+    SYSTEM_UPDATE_* constants and "Passwordless daily updates" in
+    zarya/CLAUDE.md) — a thin wrapper around system_updates.get_status(),
+    the single source of truth for reading this unit's state (also used by
+    Preferences > Updates' own status display). Zarya only ever *reads*
+    this — the root-owned timer runs the actual update on its own schedule,
+    with no password prompt and no involvement from Zarya at all; "Run Now"
+    still goes through the original pkexec prompt unchanged, since that's a
+    deliberate manual action, not the unattended case this exists to fix."""
+    system_updates.get_status(
+        lambda status: callback(status["ran_today"], status["succeeded_today"], status["failed_today"])
+    )
 
 
 STATE_COLORS = {
@@ -1069,6 +1080,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.today_str())
 
+    def already_reported_timer_failure_today(self):
+        path = timer_failure_marker_path()
+        if not path.exists():
+            return False
+        return path.read_text().strip() == self.today_str()
+
+    def mark_timer_failure_reported(self):
+        path = timer_failure_marker_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(self.today_str())
+
     def refresh_status(self):
         if self.already_ran_today():
             self.status_label.set_label("Already updated today")
@@ -1198,19 +1220,33 @@ class ZaryaWindow(Adw.ApplicationWindow):
             # to spare a redundant password prompt on the day's *first*
             # click when the root timer got there first, not to silently
             # water down an explicit "do it again" request into a no-op.
-            self._on_daily_status_checked(False, False)
+            self._on_daily_status_checked(False, False, False)
             return
         _check_unit_already_ran_today(self._on_daily_status_checked)
 
-    def _on_daily_status_checked(self, ran_today, succeeded_today):
+    def _on_daily_status_checked(self, ran_today, succeeded_today, failed_today):
         if ran_today and succeeded_today:
             self.logline("--- system update already completed today (daily timer) — skipping ---")
             self.on_privileged_done(True, 0)
             return
         if not self._interactive:
-            # Background poll, and the timer hasn't done today's privileged
-            # part yet — don't prompt on our own. Just leave things be;
-            # either the timer catches up shortly, or Cal clicks Run Now.
+            if failed_today and not self.already_reported_timer_failure_today():
+                # The timer's own retries (Restart= in zarya-system-update.service)
+                # are exhausted and today's run is genuinely, finally failed
+                # — not just between attempts. Record that once, so a failed
+                # automatic day isn't silently invisible on the dashboard
+                # (Preferences > Updates shows it too, but not everyone
+                # thinks to go check there). Deliberately not mark_done() —
+                # "Run Now" should stay available, not flip to "Run Anyway",
+                # since nothing actually succeeded yet today.
+                self.mark_timer_failure_reported()
+                self.logline("--- daily timer update failed after retries — see /var/log/zarya-system-update.log ---")
+                self.finish(success=False)
+                return
+            # Otherwise: hasn't run yet, still working through its own
+            # retries, or already reported — Zarya doesn't prompt or retry
+            # on its own either way; either the timer catches up, or Cal
+            # clicks Run Now.
             self.proc = None
             self._phase = None
             self._set_running(False)

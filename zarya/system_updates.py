@@ -40,10 +40,14 @@ def get_status(callback):
       last_result: str|None — the service's Result from its last run
                     ("success", "exit-code", ...), or None if it's never
                     run at all
-      ran_today / succeeded_today: bool — convenience flags derived from
-                    the service's own exit timestamp, used by zarya.py to
-                    avoid redundantly re-prompting for something the timer
-                    already handled today
+      ran_today: bool — the service's last exit was today (true while
+                    mid-retry too — see succeeded_today/failed_today)
+      succeeded_today / failed_today: bool — today's outcome, but only
+                    once it's actually *settled*: false for both while the
+                    service is still working through its own Restart=
+                    retries (see the .service file), so a transient retry
+                    failure never reads as a final one. Mutually exclusive;
+                    both false means "hasn't run yet" or "still retrying."
     """
     launcher = Gio.SubprocessLauncher.new(
         Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE
@@ -79,7 +83,7 @@ def get_status(callback):
         try:
             service_proc = service_launcher.spawnv([
                 "flatpak-spawn", "--host", "systemctl", "show", SYSTEM_UPDATE_SERVICE,
-                "--property=Result,ExecMainExitTimestamp",
+                "--property=Result,ExecMainExitTimestamp,ActiveState",
             ])
         except GLib.Error:
             callback(_empty_status())
@@ -95,6 +99,13 @@ def get_status(callback):
             exit_ts = service_props.get("ExecMainExitTimestamp", "")
             m = _DATE_RE.search(exit_ts)
             ran_today = bool(m) and m.group(0) == datetime.date.today().isoformat()
+            # "activating" covers both "an attempt is currently running" and
+            # "waiting RestartSec before the next retry" (see the .service's
+            # Restart=on-failure) — either way, today's outcome isn't settled
+            # yet, so Result/ExecMainExitTimestamp (which update on every
+            # individual attempt, not just the final one) can't be trusted
+            # as final until this unit leaves that state.
+            settled_today = ran_today and service_props.get("ActiveState") != "activating"
             result_str = service_props.get("Result")
             callback({
                 "installed": True,
@@ -102,7 +113,8 @@ def get_status(callback):
                 "last_trigger": timer_props.get("LastTriggerUSec") or None,
                 "last_result": result_str,
                 "ran_today": ran_today,
-                "succeeded_today": ran_today and result_str == "success",
+                "succeeded_today": settled_today and result_str == "success",
+                "failed_today": settled_today and result_str != "success",
             })
 
         service_proc.communicate_utf8_async(None, None, on_service_done)
@@ -119,7 +131,7 @@ def _empty_status():
     return {
         "installed": False,
         "next_trigger": None, "last_trigger": None, "last_result": None,
-        "ran_today": False, "succeeded_today": False,
+        "ran_today": False, "succeeded_today": False, "failed_today": False,
     }
 
 

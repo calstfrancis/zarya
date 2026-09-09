@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.3] "True Ledger" — surface fully-failed automatic updates
+
+- Added: a fully-failed automatic daily update (the timer's own retries —
+  see 0.12.2 — genuinely exhausted, not just between attempts) now shows
+  up in Recent Runs and sends a desktop notification, the same as any
+  other failed run. Previously this was silently invisible on the main
+  dashboard — no failure dot, no notification, "Run Now" gave no hint
+  anything was wrong — the only place it showed at all was Preferences >
+  Updates' status text. A genuine retry-in-progress is distinguished from
+  a settled failure via the service's `ActiveState`, and each day's
+  automatic failure is recorded at most once (a separate marker from the
+  usual "already updated today" one, so "Run Now" correctly stays
+  available rather than flipping to "Run Anyway" — nothing actually
+  succeeded yet).
+
 ## [0.12.2] "True North" — fix daily timer failing after suspend
 
 - Fixed: the daily update timer could fail instantly right after waking

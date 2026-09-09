@@ -129,11 +129,17 @@ show unit1 unit2` repeats the same property names once per unit with no
 per-unit prefix, so a naive flat-dict merge would silently let the second
 unit's values clobber the first's for any shared property name), returning
 whether it's installed, when it's next/was last triggered, the last run's
-result, and `ran_today`/`succeeded_today` convenience flags. Used by
-Preferences' status label (a real "last ran HH:MM, succeeded/failed", not
-just a static "Enabled" — added 0.12.2 after a user reported "Zarya isn't
-showing it in any way" when checking whether the timer had actually run)
-and by `zarya.py`'s `_check_unit_already_ran_today()`, a thin wrapper
+result, and `ran_today`/`succeeded_today`/`failed_today` convenience flags.
+The latter two only go true once today's outcome is actually *settled* —
+while `ActiveState` reads `"activating"` (either an attempt is currently
+running, or it's between `Restart=on-failure` attempts — see the .service
+bullet above), both stay false, since `Result`/`ExecMainExitTimestamp`
+update on every individual attempt, not just the final one, and would
+otherwise read a mid-retry failure as final. Used by Preferences' status
+label (a real "last ran HH:MM, succeeded/failed", not just a static
+"Enabled" — added 0.12.2 after a user reported "Zarya isn't showing it in
+any way" when checking whether the timer had actually run) and by
+`zarya.py`'s `_check_unit_already_ran_today()`, a thin wrapper
 `start_updates()` uses for the dedup check below.
 
 **`start_updates(interactive=...)`** in `zarya.py` is the one entry point
@@ -159,6 +165,18 @@ for both callers, and the flag is the entire behavioral difference:
   yet, it does nothing this poll and waits for the next one — Zarya no
   longer force-triggers a password prompt from the background under any
   circumstance. That's the actual fix; everything else here just supports it.
+  **If the timer's own retries have genuinely exhausted and today's run is
+  settled-failed** (`failed_today`, added 0.12.3 — found via a direct user
+  question after the 0.12.2 incident: "is that going to appear as two
+  failures pointlessly in the recent runs?"), it's recorded into
+  history/notification exactly once via `finish(success=False)` — gated on
+  `already_reported_timer_failure_today()` (a *separate* marker from
+  `mark_done()`/`already_ran_today()`, since a failed automatic run should
+  leave "Run Now" available, not flip it to "Run Anyway") so the same
+  settled failure doesn't get re-recorded on every 5-minute poll for the
+  rest of the day. Before this, a fully-exhausted automatic failure was
+  silently invisible on the main dashboard — no dot, no notification, only
+  visible by going to check Preferences > Updates directly.
 
 ## Completion must be keyed on process exit, not stdout EOF
 
