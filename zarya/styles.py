@@ -182,20 +182,29 @@ FONDWAVE_CSS = f"""
   color: {TERMINAL_BG};
 }}
 
-/* Status cards (System/Backups/Updates) — a flat card that only takes on
-   color when there's actually something to flag, so a normal morning is
-   visually quiet and a real problem stands out immediately. */
+/* Status cards (System/Backups/Updates) — always a visible card (same
+   look as libadwaita's own `.card`), so it reads as a distinct tappable
+   element even when there's nothing to report; only the *color* is quiet
+   until there's actually something to flag. Named colors throughout, so
+   this recolors for free in dark mode / any accent — no hardcoded hexes
+   for the neutral state. */
 .status-card {{
+  background-color: @card_bg_color;
+  color: @card_fg_color;
+  border: 1px solid @borders;
   border-radius: 12px;
   padding: 8px 10px;
 }}
+.status-card:hover {{
+  background-color: alpha(@window_fg_color, 0.03);
+}}
 .status-card.warning {{
   background-color: alpha(#e5a50a, 0.12);
-  border: 1px solid alpha(#e5a50a, 0.4);
+  border-color: alpha(#e5a50a, 0.4);
 }}
 .status-card.error {{
   background-color: alpha(#e01b24, 0.1);
-  border: 1px solid alpha(#e01b24, 0.35);
+  border-color: alpha(#e01b24, 0.35);
 }}
 .status-card .status-card-title {{ font-size: 0.85em; opacity: 0.75; }}
 .status-card .status-card-value {{ font-weight: 700; }}

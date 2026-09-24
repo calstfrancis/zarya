@@ -1,18 +1,19 @@
-# Zarya v0.17.0 "Wide Deck"
+# Zarya v0.17.1 "True Face"
 
 **Released:** 2026-09-24
 
 ## What's new
 
-- **Maximizing the window now uses the extra width** instead of stretching
-  the same single column across it: Today's Events sits on the left, and
-  the System/Backups/Updates status cards stack in a column on the right.
-  The layout switches back automatically once the window narrows below
-  about 1200px.
+- **Fixed:** the System/Backups/Updates status cards had no visible
+  background or border at all when everything was fine — just text
+  floating in space, only looking like an actual card once colored amber
+  or red for a problem. They now look like a real card at all times; only
+  the color changes when something needs attention.
+- **Fixed:** in the maximized wide layout (v0.17.0), the status-card
+  column was stretching to fill most of the window's width instead of
+  staying a narrow column next to Today's Events.
 
-See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases,
-including v0.16.0 "Clear Deck" (the status-card redesign, sidebar merge,
-and bottom-bar removal this builds on).
+See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 
 ## Download
 

@@ -415,6 +415,31 @@ again. Also verified maximize → unmaximize → maximize → unmaximize in one
 session doesn't leak or duplicate widgets — `wide_row` ends each cycle
 empty and unparented, ready to be reused next time.
 
+**Two real bugs found from an actual screenshot Cal took after updating,
+not caught by the fluxbox testing above (0.17.1):**
+
+- **`.status-card` had no visible background/border at all in the neutral
+  ("ok") state** — only `.warning`/`.error` set a background/border, so a
+  healthy card was just bare text floating with padding, not a card. Fixed
+  by giving `.status-card` a real base look (`@card_bg_color`/
+  `@card_fg_color`/`@borders`, same named-color approach as everywhere
+  else), with the warning/error rules now only overriding the color on top
+  of that base rather than being the only state that painted anything.
+- **`status_row` itself was stretching to fill most of the wide layout's
+  width**, instead of staying a narrow column next to Events. Cause:
+  `_make_status_card` sets `card.set_hexpand(True)` on each card (needed so
+  a card fills `status_row`'s width once stacked vertically in wide mode)
+  — but `Gtk.Box` propagates a child's `hexpand` up to the box itself when
+  the box hasn't set its own value, so `status_row` inherited hexpand=True
+  from its card children and then claimed all the leftover space in
+  `wide_row` instead of respecting its `set_size_request(280, -1)`. Fixed
+  with an explicit `self.status_row.set_hexpand(False)` in
+  `_on_wide_layout` (and `set_hexpand(True)` restored in
+  `_on_narrow_layout`, where filling the full column width under Events
+  *is* wanted). Worth remembering generally: setting `hexpand` on a
+  container's children can silently change the container's own effective
+  expand behavior unless the container's `hexpand` is pinned explicitly.
+
 ## Weather chart history
 
 The hourly weather display was originally a Cairo-drawn line/bar chart

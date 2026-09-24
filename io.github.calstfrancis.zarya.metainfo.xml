@@ -39,6 +39,18 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.17.1" date="2026-09-24">
+      <description>
+        <p>
+          "True Face". Fixes the System/Backups/Updates status cards having
+          no visible background or border at all when everything was fine —
+          they now look like a real card at all times, with color only
+          appearing when something needs attention. Also fixes the
+          maximized layout's status-card column stretching too wide instead
+          of staying narrow next to Today's Events.
+        </p>
+      </description>
+    </release>
     <release version="0.17.0" date="2026-09-24">
       <description>
         <p>

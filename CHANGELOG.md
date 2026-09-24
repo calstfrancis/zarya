@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.1] "True Face" — status cards actually look like cards
+
+- Fixed: the System/Backups/Updates status cards had no visible
+  background or border at all when everything was fine — just bare text
+  floating in space, only turning into an actual card once colored amber
+  or red. They now look like a real card (background, border) at all
+  times; only the color changes when something needs attention.
+- Fixed: in the maximized wide layout, the status-card column was
+  stretching to fill most of the window's width instead of staying a
+  narrow column next to Today's Events.
+
 ## [0.17.0] "Wide Deck" — maximized window now uses its width
 
 - Added: maximizing the window (or otherwise widening it past ~1200px) now

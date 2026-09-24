@@ -642,6 +642,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.status_row.set_orientation(Gtk.Orientation.VERTICAL)
         self.status_row.set_homogeneous(False)
         self.status_row.set_size_request(280, -1)
+        # Each card is set hexpand=True (so it fills this column's width
+        # once stacked vertically) — but Gtk.Box propagates a child's
+        # hexpand up to the box itself, so without this, status_row would
+        # also claim hexpand and stretch across most of wide_row instead of
+        # staying a narrow side column next to Events.
+        self.status_row.set_hexpand(False)
         self.wide_row.append(self.events_expander)
         self.wide_row.append(self.status_row)
         self.root_box.insert_child_after(self.wide_row, self.weather_expander)
@@ -656,6 +662,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.status_row.set_orientation(Gtk.Orientation.HORIZONTAL)
         self.status_row.set_homogeneous(True)
         self.status_row.set_size_request(-1, -1)
+        self.status_row.set_hexpand(True)
         self.root_box.insert_child_after(self.events_expander, self.weather_expander)
         self.root_box.insert_child_after(self.status_row, self.events_expander)
 
