@@ -1,31 +1,25 @@
-# Zarya v0.12.3 "True Ledger"
+# Zarya v0.13.0 "Amber Bloom"
 
-**Released:** 2026-09-09
+**Released:** 2026-09-24
 
 ## What's new
 
-Straight follow-up to yesterday's fix, from a direct question about how
-retries interact with the run history:
+- **Today's Events, System Health, and Backups now auto-refresh in the
+  background** — every 15, 5, and 10 minutes respectively — instead of only
+  updating when you click refresh or open the app.
+- **The weather card now shows today's sunrise and sunset**, and its
+  gradient shifts from its darkest colors at night to its lightest at solar
+  noon and back — phased to the real sunrise/sunset midpoint once weather
+  has loaded.
+- **A new Disk Growth section** reports which top-level home directories
+  have grown the most over the past week, once a week of history has been
+  collected (it starts building that history from your first launch on this
+  version).
+- **A new Habits section** — a small daily habit tracker. Add a habit,
+  click it to mark today done, and see your current streak. No account or
+  external API involved; everything stays local.
 
-- **A fully-failed automatic daily update now shows up in Recent Runs and
-  sends a notification.** Previously, if the daily timer's own retries
-  (added in 0.12.2) genuinely exhausted and today's update never actually
-  succeeded, that failure was silently invisible on the main dashboard —
-  no failure dot, no notification, "Run Now" gave no hint anything was
-  wrong. The only place it showed at all was Preferences > Updates'
-  status text.
-- A retry still *in progress* is correctly distinguished from a *settled*
-  failure (checked via the service's own active state), so this never
-  double-counts — two failed attempts followed by a successful third one
-  still shows as exactly one success, never two pointless failures. A
-  fully exhausted failure is recorded at most once per day, and correctly
-  leaves "Run Now" available rather than flipping it to "Run Anyway",
-  since nothing actually succeeded.
-
-See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases,
-including v0.12.2 "True North" (fixed the daily timer failing right after
-waking from suspend) and v0.12.1 "Steady Hours" (weather table now shows
-±12 hours around now).
+See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 
 ## Download
 
@@ -41,8 +35,7 @@ flatpak remote-add --user calstfrancis \
 flatpak install calstfrancis io.github.calstfrancis.zarya
 ```
 
-Already installed? `flatpak update` picks this up — no unit-file changes
-this time, so no need to click "Reinstall" in Preferences > Updates.
+Already installed? `flatpak update` picks this up.
 
 ## Running
 
