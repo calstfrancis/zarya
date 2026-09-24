@@ -1,23 +1,25 @@
-# Zarya v0.14.0 "Lunar Reset"
+# Zarya v0.15.0 "True Horizon"
 
 **Released:** 2026-09-24
 
 ## What's new
 
-- **Zarya now offers to restart itself right after an update installs a new
-  version of Zarya** — a small dialog with "Restart Now" / "Later". An
-  already-running Zarya keeps executing its old code in memory until it's
-  actually relaunched, so this closes that gap for both a manual "Run Now"
-  and the silent daily background update.
-- **Today's moon phase and illumination**, shown next to sunrise/sunset in
-  the weather card — no extra network call, just a plain astronomical
-  calculation.
-- **Each habit row now shows a rolling "X/7 this week" count** alongside its
-  streak.
+- **Fixed: the weather card's gradient now actually lines up with today's
+  real sunrise and sunset.** It previously assumed a fixed 12-hour day
+  centered on clock-noon, so on a short winter day it stayed bright for
+  hours after the sun had actually set (and started brightening too early
+  in the morning). It's now a smooth arc between today's *real* sunrise and
+  sunset — dark outside that window, brightest exactly at solar noon inside
+  it — so it matches the actual hours of daylight and dark year-round.
+- **A day-length delta** ("+Nm daylight" / "−Nm daylight") now shows next
+  to sunrise/sunset, comparing today against yesterday.
+- **A subtle rain or snow tint** now appears over the weather gradient when
+  it's currently precipitating, colored and scaled to intensity from the
+  live weather conditions.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases,
-including v0.13.0 "Amber Bloom" (background auto-refresh, sunrise/sunset,
-Disk Growth, Habits).
+including v0.14.0 "Lunar Reset" (restart-after-update prompt, moon phase,
+weekly habit rollup).
 
 ## Download
 
@@ -33,8 +35,8 @@ flatpak remote-add --user calstfrancis \
 flatpak install calstfrancis io.github.calstfrancis.zarya
 ```
 
-Already installed? `flatpak update` picks this up — and starting with this
-release, Zarya will offer to restart itself once it does.
+Already installed? `flatpak update` picks this up — and Zarya will offer to
+restart itself once it does.
 
 ## Running
 

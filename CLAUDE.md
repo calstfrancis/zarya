@@ -325,22 +325,59 @@ machine left open across midnight — see below for why more frequent doesn't
 help it. Each timer callback just calls the section's existing `fetch_*()`
 and returns `True` to keep repeating.
 
-## Weather gradient tracks the solar day (0.13.0)
+## Weather gradient tracks the solar day (0.13.0, fixed 0.15.0)
 
 `.fondwave-card`'s gradient used to be a fixed set of 5 colors. It's now
 computed from a 6-color dark→light ramp (`styles._GRADIENT_RAMP`): a
 "daylight factor" in [0, 1] slides a 5-color window across the ramp, so the
-whole gradient shifts one step lighter as the factor rises. The factor
-itself is `0.5 - 0.5*cos(...)`, phased so it peaks at solar noon rather than
-a fixed 12:00 — `weather.solar_noon_hour()` computes the real midpoint from
-today's sunrise/sunset once weather has loaded (`styles.set_solar_noon_hour`,
-called from `render_weather`); before that, or if sunrise/sunset didn't come
-back, it defaults to a plain clock-noon assumption. Recomputed every 600s by
+whole gradient shifts one step lighter as the factor rises.
+
+**0.13.0's first version of this was wrong**: `daylight_factor()` used a
+single `0.5 - 0.5*cos(...)` over the full 24h, phased to peak at solar noon
+— but a full-period cosine is always symmetric, so it always modeled
+exactly 12 hours of "daylight" and 12 of "night" regardless of the actual
+day length. On a short winter day (sunrise 08:00, sunset 16:30 — 8.5 hours
+of real daylight) it would still show a bright gradient until ~18:00, two
+hours after actual sunset. **Fixed in 0.15.0**: `daylight_factor(now,
+sunrise_hour, sunset_hour)` is now a half-sine arc *between* sunrise and
+sunset specifically (`sin(pi * (hour - sunrise) / (sunset - sunrise))`) —
+0 at sunrise, 1 at the midpoint (solar noon, by construction), back to 0 at
+sunset — and flat 0.0 outside that window, since 0 is already the ramp's
+darkest end and doesn't need its own night-time curve. `weather.sun_hours()`
+returns today's real sunrise/sunset as fractional hours once weather has
+loaded (`styles.set_sun_hours`, called from `render_weather`); before that,
+or if sunrise/sunset didn't come back, it falls back to the old fixed-noon
+cosine as a reasonable default. Recomputed every 600s by
 `_on_gradient_refresh_timer` via `styles.refresh_weather_gradient()`, which
 updates a dedicated `Gtk.CssProvider` in place (`styles._gradient_provider`)
 rather than re-adding one each time, so it never stacks providers on the
 display. Sunrise/sunset themselves come from Open-Meteo's `daily` block
 (`sunrise,sunset` added to the existing params) — no new API or network call.
+
+## Precipitation gradient tint (0.15.0)
+
+A second, semi-transparent `linear-gradient` layer is prepended before the
+daylight gradient in `.fondwave-card`'s `background-image` (CSS supports
+multiple comma-separated background layers; the first listed renders on
+top) — `styles._precip_overlay_css()`, driven by `weather.precip_tint()`
+mapping the *current* Open-Meteo weather code (added `weather_code,
+precipitation` to the `current` params, not just the daily/hourly ones
+already fetched) to a (kind, alpha) pair: blue-gray for rain, pale
+near-white for snow, with alpha hand-tuned per code so heavier variants
+(e.g. 65 "heavy rain" vs 61 "light rain") tint more strongly. `None` when
+the current code isn't an active-precipitation one, which clears the
+overlay entirely (plain daylight gradient, same as always). Set via
+`styles.set_precip_tint()` alongside `set_sun_hours()` in `render_weather`.
+
+## Day-length delta (0.15.0)
+
+`weather.day_length_delta_minutes()` compares today's sunrise/sunset
+against yesterday's — both already present in the same `fetch_today()`
+response thanks to `past_days=1` (yesterday sits at daily-array index 0,
+one before `TODAY_INDEX`), so this needed no extra request, just reading
+data already being fetched and discarded. Shown in the weather card's
+second row as "+Nm daylight" / "−Nm daylight", omitted entirely on a
+day-over-day tie (`round(delta) == 0`).
 
 ## Disk Growth section (0.13.0)
 

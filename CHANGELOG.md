@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.15.0] "True Horizon" — gradient actually matches sunrise/sunset, daylight delta, rain/snow tint
+
+- Fixed: the weather card's gradient assumed a fixed 12-hour day centered on
+  clock-noon, so on a short winter day it stayed bright for hours after the
+  real sunset (and, symmetrically, started brightening too early in the
+  morning). It's now a half-sine arc between today's *actual* sunrise and
+  sunset — dark outside that window, peaking exactly at solar noon inside
+  it — so it lines up with the real hours of daylight and dark regardless
+  of season.
+- Added: a day-length delta ("+Nm daylight" / "−Nm daylight") next to
+  sunrise/sunset, comparing today against yesterday.
+- Added: a subtle rain/snow tint over the weather gradient when it's
+  currently precipitating, colored and scaled to intensity from the live
+  weather code.
+
 ## [0.14.0] "Lunar Reset" — restart-after-update prompt, moon phase, weekly habit rollup
 
 - Added: Zarya now offers to restart itself right after an update actually

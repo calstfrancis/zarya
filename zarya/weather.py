@@ -86,17 +86,64 @@ def format_sun_time(iso_str):
         return None
 
 
-def solar_noon_hour(sunrise_iso, sunset_iso):
-    """Midpoint of sunrise/sunset as a fractional hour (e.g. 13.1), or None
-    if either is missing — used to phase-shift the weather gradient's
-    daylight curve to the real solar day instead of assuming noon."""
+def sun_hours(sunrise_iso, sunset_iso):
+    """(sunrise_hour, sunset_hour) as fractional hours (e.g. (7.1, 19.2)),
+    or (None, None) if either is missing — feeds the weather gradient's
+    daylight curve so it actually lines up with today's real sunrise/sunset
+    instead of assuming a fixed 12-hour day centered on noon."""
+    try:
+        sunrise = datetime.datetime.fromisoformat(sunrise_iso)
+        sunset = datetime.datetime.fromisoformat(sunset_iso)
+    except (TypeError, ValueError):
+        return None, None
+    return (
+        sunrise.hour + sunrise.minute / 60,
+        sunset.hour + sunset.minute / 60,
+    )
+
+
+def day_length_minutes(sunrise_iso, sunset_iso):
     try:
         sunrise = datetime.datetime.fromisoformat(sunrise_iso)
         sunset = datetime.datetime.fromisoformat(sunset_iso)
     except (TypeError, ValueError):
         return None
-    midpoint = sunrise + (sunset - sunrise) / 2
-    return midpoint.hour + midpoint.minute / 60
+    return (sunset - sunrise).total_seconds() / 60
+
+
+def day_length_delta_minutes(today_sunrise, today_sunset, yesterday_sunrise, yesterday_sunset):
+    """Minutes more (positive) or less (negative) daylight than yesterday,
+    or None if either day's sunrise/sunset is missing. Both days' data
+    already come from the same `fetch_today()` call (via `past_days=1`),
+    so this needs no extra network request."""
+    today_len = day_length_minutes(today_sunrise, today_sunset)
+    yesterday_len = day_length_minutes(yesterday_sunrise, yesterday_sunset)
+    if today_len is None or yesterday_len is None:
+        return None
+    return today_len - yesterday_len
+
+
+# code -> (kind, alpha) for the weather card's precipitation tint overlay.
+# Alpha increases with intensity (light/moderate/heavy variants of the same
+# code family) — a plain, hand-picked scale, not derived from actual
+# rainfall-rate physics.
+_PRECIP_TINTS = {
+    51: ("rain", 0.12), 53: ("rain", 0.16), 55: ("rain", 0.20),
+    56: ("rain", 0.14), 57: ("rain", 0.18),
+    61: ("rain", 0.16), 63: ("rain", 0.22), 65: ("rain", 0.30),
+    66: ("rain", 0.18), 67: ("rain", 0.26),
+    80: ("rain", 0.18), 81: ("rain", 0.24), 82: ("rain", 0.32),
+    95: ("rain", 0.28), 96: ("rain", 0.32), 99: ("rain", 0.36),
+    71: ("snow", 0.14), 73: ("snow", 0.20), 75: ("snow", 0.28), 77: ("snow", 0.12),
+    85: ("snow", 0.18), 86: ("snow", 0.26),
+}
+
+
+def precip_tint(code):
+    """(kind, alpha) for the current weather code if it's actively
+    precipitating, else None — `kind` is "rain" or "snow", used to pick the
+    overlay tint color."""
+    return _PRECIP_TINTS.get(code)
 
 
 def geocode(location):
@@ -124,7 +171,7 @@ def fetch_today(lat, lon):
         "longitude": lon,
         "daily": "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset",
         "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability",
-        "current": "temperature_2m,apparent_temperature",
+        "current": "temperature_2m,apparent_temperature,weather_code,precipitation",
         "timezone": "auto",
         "past_days": 1,
         "forecast_days": 2,
@@ -153,9 +200,14 @@ def fetch_today(lat, lon):
     lo, hi = max(0, now_idx - 12), min(len(hourly["time"]), now_idx + 13)
 
     # "auto" timezone makes these local ISO timestamps (e.g.
-    # "2026-09-24T06:42"), same as the hourly series above.
+    # "2026-09-24T06:42"), same as the hourly series above. Index 0 (not
+    # shifted like TODAY_INDEX) is yesterday, already present in this same
+    # response thanks to past_days=1 — used for the day-length delta below,
+    # no extra request needed.
     sunrise = daily.get("sunrise", [None] * (TODAY_INDEX + 1))[TODAY_INDEX]
     sunset = daily.get("sunset", [None] * (TODAY_INDEX + 1))[TODAY_INDEX]
+    sunrise_yesterday = daily.get("sunrise", [None])[0]
+    sunset_yesterday = daily.get("sunset", [None])[0]
 
     return {
         "code": daily["weather_code"][TODAY_INDEX],
@@ -163,10 +215,14 @@ def fetch_today(lat, lon):
         "temp_min_c": daily["temperature_2m_min"][TODAY_INDEX],
         "sunrise": sunrise,
         "sunset": sunset,
+        "sunrise_yesterday": sunrise_yesterday,
+        "sunset_yesterday": sunset_yesterday,
         "hours": hourly["time"][lo:hi],
         "temp_c": hourly["temperature_2m"][lo:hi],
         "humidity": [v if v is not None else 0 for v in hourly["relative_humidity_2m"][lo:hi]],
         "precip_prob": [v if v is not None else 0 for v in hourly["precipitation_probability"][lo:hi]],
         "current_temp_c": current.get("temperature_2m"),
         "feels_like_c": current.get("apparent_temperature"),
+        "current_code": current.get("weather_code"),
+        "current_precip_mm": current.get("precipitation"),
     }

@@ -22,8 +22,9 @@ weather, your backup status, and today's calendar events — all in one window.
   Google Tasks — one OAuth2 + PKCE connection covers both; only a refresh
   token is stored, in the system keyring
 - Today's Events, System Health, and Backups auto-refresh in the background
-- Sunrise/sunset times and today's moon phase, and a weather-card gradient
-  that tracks the real solar day (darkest at night, lightest at solar noon)
+- Sunrise/sunset times, today's moon phase, and a day-length delta from
+  yesterday, plus a weather-card gradient that tracks the real hours of
+  daylight/dark (not just clock-noon) and tints for current rain/snow
 - Disk Growth: which home directories have grown the most in the past week
 - Habits: a small daily habit tracker with streaks and a weekly rollup, no
   account needed

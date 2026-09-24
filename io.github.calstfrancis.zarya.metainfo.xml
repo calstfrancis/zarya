@@ -18,7 +18,7 @@
     <ul>
       <li>Runs zypper refresh + dist-upgrade and flatpak update with a single graphical password prompt</li>
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
-      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", sunrise/sunset, moon phase, Environment Canada weather alerts, and the AQI</li>
+      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", sunrise/sunset, day-length delta, moon phase, a rain/snow gradient tint, Environment Canada weather alerts, and the AQI</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
       <li>System Health: disk space, drive SMART status, battery health, and CPU/GPU temperature</li>
       <li>Today's events from any combination of your Google calendars</li>
@@ -41,6 +41,20 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.15.0" date="2026-09-24">
+      <description>
+        <p>
+          "True Horizon". Fixes the weather gradient assuming a fixed
+          12-hour day centered on clock-noon — it stayed bright for hours
+          after sunset on a short winter day. It's now a half-sine arc
+          between today's actual sunrise and sunset, lining up with the
+          real hours of daylight regardless of season. Also adds a
+          day-length delta ("+Nm daylight") next to sunrise/sunset, and a
+          subtle rain/snow tint over the gradient when it's currently
+          precipitating.
+        </p>
+      </description>
+    </release>
     <release version="0.14.0" date="2026-09-24">
       <description>
         <p>

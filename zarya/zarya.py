@@ -743,10 +743,20 @@ class ZaryaWindow(Adw.ApplicationWindow):
         sun_pieces = []
         if sunrise and sunset:
             sun_pieces.append(f"☀ {sunrise} – {sunset}")
+        delta = weather.day_length_delta_minutes(
+            d.get("sunrise"), d.get("sunset"), d.get("sunrise_yesterday"), d.get("sunset_yesterday"),
+        )
+        if delta is not None and round(delta) != 0:
+            sign = "+" if delta > 0 else "−"
+            sun_pieces.append(f"{sign}{abs(round(delta))}m daylight")
         moon = weather.moon_phase()
         sun_pieces.append(f"{moon['emoji']} {moon['name']} ({moon['illumination']:.0f}%)")
         self.weather_sun_label.set_label(" · ".join(sun_pieces))
-        styles.set_solar_noon_hour(weather.solar_noon_hour(d.get("sunrise"), d.get("sunset")))
+
+        sunrise_hour, sunset_hour = weather.sun_hours(d.get("sunrise"), d.get("sunset"))
+        styles.set_sun_hours(sunrise_hour, sunset_hour)
+        current_code = d.get("current_code")
+        styles.set_precip_tint(weather.precip_tint(current_code) if current_code is not None else None)
 
     def render_alerts(self, alerts):
         self._clear_box(self.alerts_box)

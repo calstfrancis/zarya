@@ -51,16 +51,30 @@ def _lerp_hex(a: str, b: str, t: float) -> str:
     )
 
 
-def daylight_factor(now: datetime | None = None, solar_noon_hour: float = 12.0) -> float:
-    """0.0 at the darkest point of the day, 1.0 at solar noon, smooth in
-    between. `solar_noon_hour` defaults to a plain clock-noon assumption;
-    pass the real midpoint of today's sunrise/sunset (from
-    `weather.solar_noon_hour`) once it's known, to phase-shift the curve to
-    the actual solar day instead of assuming exactly 12:00.
+def daylight_factor(
+    now: datetime | None = None,
+    sunrise_hour: float | None = None,
+    sunset_hour: float | None = None,
+) -> float:
+    """0.0 while it's dark out, 1.0 at solar noon, smooth in between —
+    lines up with the *actual* length of today's daylight (from
+    `weather.sun_hours`) rather than assuming a fixed 12-hour day centered
+    on clock-noon. Before sunrise or after sunset it's flat 0.0 (already the
+    ramp's darkest end, so there's no need for a separate night-time curve);
+    between them it's a half-sine arc from 0 at sunrise, through 1 at the
+    midpoint (which is solar noon by construction), back to 0 at sunset.
+
+    Falls back to the old fixed-noon cosine curve if sunrise/sunset aren't
+    known yet (before weather has loaded) — a reasonable default, just not
+    tied to a real day length.
     """
     now = now or datetime.now()
     hour = now.hour + now.minute / 60
-    return 0.5 - 0.5 * math.cos((hour - solar_noon_hour + 12) / 24 * 2 * math.pi)
+    if sunrise_hour is None or sunset_hour is None or sunset_hour <= sunrise_hour:
+        return 0.5 - 0.5 * math.cos(hour / 24 * 2 * math.pi)
+    if sunrise_hour <= hour <= sunset_hour:
+        return math.sin(math.pi * (hour - sunrise_hour) / (sunset_hour - sunrise_hour))
+    return 0.0
 
 
 def _gradient_stops(factor: float) -> list[str]:
@@ -70,12 +84,33 @@ def _gradient_stops(factor: float) -> list[str]:
     return [_lerp_hex(_GRADIENT_RAMP[i], _GRADIENT_RAMP[i + 1], factor) for i in range(5)]
 
 
-def weather_gradient_css(factor: float | None = None, solar_noon_hour: float = 12.0) -> str:
+# rain: cool blue-gray; snow: pale, closer to white. RGB components only —
+# alpha comes from weather.precip_tint()'s per-code intensity.
+_PRECIP_COLORS = {"rain": "74, 85, 104", "snow": "218, 225, 231"}
+
+
+def _precip_overlay_css(precip: tuple[str, float] | None) -> str:
+    if precip is None:
+        return ""
+    kind, alpha = precip
+    rgb = _PRECIP_COLORS.get(kind)
+    if rgb is None:
+        return ""
+    return f"linear-gradient(135deg, rgba({rgb}, {alpha}) 0%, rgba({rgb}, {alpha * 0.4}) 100%), "
+
+
+def weather_gradient_css(
+    factor: float | None = None,
+    sunrise_hour: float | None = None,
+    sunset_hour: float | None = None,
+    precip: tuple[str, float] | None = None,
+) -> str:
     if factor is None:
-        factor = daylight_factor(solar_noon_hour=solar_noon_hour)
+        factor = daylight_factor(sunrise_hour=sunrise_hour, sunset_hour=sunset_hour)
     stops = _gradient_stops(factor)
     stop_list = ", ".join(f"{color} {pos}%" for color, pos in zip(stops, _GRADIENT_POSITIONS))
-    return f".fondwave-card {{ background-image: linear-gradient(135deg, {stop_list}); }}"
+    overlay = _precip_overlay_css(precip)
+    return f".fondwave-card {{ background-image: {overlay}linear-gradient(135deg, {stop_list}); }}"
 
 
 FONDWAVE_CSS = f"""
@@ -201,15 +236,25 @@ def apply():
 
 
 _gradient_provider: Gtk.CssProvider | None = None
-_solar_noon_hour = 12.0
+_sunrise_hour: float | None = None
+_sunset_hour: float | None = None
+_precip: tuple[str, float] | None = None
 
 
-def set_solar_noon_hour(hour: float | None):
-    """Called once today's weather has loaded, with the real midpoint of
-    sunrise/sunset (`weather.solar_noon_hour`) — falls back to the plain
-    12:00 assumption if weather hasn't loaded yet or the fetch omitted it."""
-    global _solar_noon_hour
-    _solar_noon_hour = hour if hour is not None else 12.0
+def set_sun_hours(sunrise_hour: float | None, sunset_hour: float | None):
+    """Called once today's weather has loaded, with today's real sunrise and
+    sunset (`weather.sun_hours`) — falls back to the fixed-noon curve if
+    weather hasn't loaded yet or the fetch omitted them."""
+    global _sunrise_hour, _sunset_hour
+    _sunrise_hour, _sunset_hour = sunrise_hour, sunset_hour
+    refresh_weather_gradient()
+
+
+def set_precip_tint(precip: tuple[str, float] | None):
+    """Called once today's weather has loaded, with `weather.precip_tint()`
+    for the current conditions — None clears the overlay."""
+    global _precip
+    _precip = precip
     refresh_weather_gradient()
 
 
@@ -221,4 +266,6 @@ def refresh_weather_gradient():
     stacks duplicate providers on the display.
     """
     if _gradient_provider is not None:
-        _gradient_provider.load_from_string(weather_gradient_css(solar_noon_hour=_solar_noon_hour))
+        _gradient_provider.load_from_string(
+            weather_gradient_css(sunrise_hour=_sunrise_hour, sunset_hour=_sunset_hour, precip=_precip)
+        )
