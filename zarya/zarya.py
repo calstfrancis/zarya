@@ -335,7 +335,6 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.health_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.disk_growth_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.system_detail_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
-        self.system_detail_body.set_size_request(320, -1)
         self.system_detail_body.append(self._popover_heading("Storage & Drives", self.fetch_system_health))
         self.system_detail_body.append(self.health_box)
         self.system_detail_body.append(Gtk.Separator())
@@ -350,7 +349,6 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # Backups
         self.backup_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.backups_detail_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
-        self.backups_detail_body.set_size_request(320, -1)
         self.backups_detail_body.append(self._popover_heading("Backups", self.fetch_backups))
         self.backups_detail_body.append(self.backup_box)
         open_pereprava_button = Gtk.Button(label="Open Pereprava", halign=Gtk.Align.START)
@@ -366,7 +364,6 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # entirely inside this card's popover (or inline, in the wide
         # layout — see _on_wide_layout).
         self.updates_detail_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
-        self.updates_detail_body.set_size_request(360, -1)
 
         self.status_label = Gtk.Label(xalign=0)
         self.status_label.add_css_class("heading")
@@ -424,7 +421,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.updates_detail_body.append(log_expander)
 
         self.updates_card, self.updates_card_value, self.updates_card_detail = self._make_status_card(
-            "software-update-available-symbolic", "Updates", self.updates_detail_body,
+            "software-update-available-symbolic", "Updates", self.updates_detail_body, popover_width=360,
         )
         status_row.append(self.updates_card)
 
@@ -600,12 +597,20 @@ class ZaryaWindow(Adw.ApplicationWindow):
         row.append(refresh_button)
         return row
 
-    def _make_status_card(self, icon_name, title, popover_content):
+    def _make_status_card(self, icon_name, title, popover_content, popover_width=320):
         """A compact status card (System/Backups/Updates): a title, a
         one-line value, and an optional detail line, all on a MenuButton
         face whose popover holds the full detail — folds what used to be
         several always-expanded sections (plus the bottom button row, for
-        Updates) into something that only takes space when clicked."""
+        Updates) into something that only takes space when clicked.
+
+        `popover_width` sizes the *popover* itself, not the detail-body
+        widget it holds — that widget is the same one reused inline in the
+        wide layout (see _on_wide_layout), so it must stay free of any
+        fixed width of its own or it forces the wide grid's columns
+        (and, via them, the whole main content area) wider than the window,
+        pushing the sidebar off-screen on a merely-wide-enough-to-trigger-
+        the-breakpoint window. A real bug, found from a live screenshot."""
         card = Gtk.MenuButton()
         card.add_css_class("status-card")
         card.add_css_class("flat")
@@ -633,6 +638,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         card.set_child(box)
 
         popover = Gtk.Popover()
+        popover.set_size_request(popover_width, -1)
         popover.set_child(popover_content)
         card.set_popover(popover)
 
@@ -990,13 +996,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         sunset = weather.format_sun_time(d.get("sunset"))
         sun_pieces = []
         if sunrise and sunset:
-            sun_pieces.append(f"☀ {sunrise} – {sunset}")
+            sun_pieces.append(f"☀ Sunrise {sunrise} · Sunset {sunset}")
         delta = weather.day_length_delta_minutes(
             d.get("sunrise"), d.get("sunset"), d.get("sunrise_yesterday"), d.get("sunset_yesterday"),
         )
         if delta is not None and round(delta) != 0:
-            sign = "+" if delta > 0 else "−"
-            sun_pieces.append(f"{sign}{abs(round(delta))}m daylight")
+            minutes = abs(round(delta))
+            comparison = "more" if delta > 0 else "less"
+            sun_pieces.append(f"{minutes} min {comparison} daylight than yesterday")
         moon = weather.moon_phase()
         sun_pieces.append(f"{moon['emoji']} {moon['name']} ({moon['illumination']:.0f}%)")
         self.weather_sun_label.set_label(" · ".join(sun_pieces))
@@ -1093,28 +1100,59 @@ class ZaryaWindow(Adw.ApplicationWindow):
             state_label = Gtk.Label(label=STATE_LABELS.get(state, state))
             state_label.add_css_class(STATE_COLORS.get(state, "dim-label"))
             row.append(state_label)
-            last_run_text = self._format_backup_time(job.get("last_run")) or job.get("last_run_text")
+            last_run_text, last_run_abs = self._format_backup_time(job.get("last_run"))
+            last_run_text = last_run_text or job.get("last_run_text")
             if last_run_text:
                 last_run_label = Gtk.Label(label=f"last {last_run_text}")
                 last_run_label.add_css_class("dim-label")
+                if last_run_abs:
+                    last_run_label.set_tooltip_text(last_run_abs)
                 row.append(last_run_label)
-            next_run_text = self._format_backup_time(job.get("next_run"))
+            next_run_text, next_run_abs = self._format_backup_time(job.get("next_run"))
             if next_run_text:
                 next_run_label = Gtk.Label(label=f"next {next_run_text}")
                 next_run_label.add_css_class("dim-label")
+                if next_run_abs:
+                    next_run_label.set_tooltip_text(next_run_abs)
                 row.append(next_run_label)
             self.backup_box.append(row)
         self._update_window_title()
 
     @staticmethod
     def _format_backup_time(epoch_micros):
+        """Returns (relative_text, absolute_text) — e.g. ("12 h ago",
+        "2026-09-24 06:08") — or (None, None). The relative text is what's
+        shown; the absolute is set as a tooltip, since "12 h ago" alone
+        loses the actual time a glance at the raw timestamp used to give."""
         if not isinstance(epoch_micros, (int, float)) or epoch_micros <= 0:
-            return None
+            return None, None
         try:
             dt = datetime.datetime.fromtimestamp(epoch_micros / 1_000_000)
-            return dt.strftime("%Y-%m-%d %H:%M")
         except (OverflowError, OSError, ValueError):
-            return None
+            return None, None
+
+        now = datetime.datetime.now()
+        absolute = dt.strftime("%Y-%m-%d %H:%M")
+        future = dt > now
+        seconds = abs((dt - now).total_seconds())
+
+        if seconds < 60:
+            relative = "in a moment" if future else "just now"
+        elif seconds < 3600:
+            n = round(seconds / 60)
+            relative = f"in {n} min" if future else f"{n} min ago"
+        elif dt.date() == now.date():
+            n = round(seconds / 3600)
+            relative = f"in {n} h" if future else f"{n} h ago"
+        elif dt.date() == now.date() + datetime.timedelta(days=1):
+            relative = f"tomorrow {dt.strftime('%H:%M')}"
+        elif dt.date() == now.date() - datetime.timedelta(days=1):
+            relative = f"yesterday {dt.strftime('%H:%M')}"
+        elif seconds < 7 * 86400:
+            relative = dt.strftime("%A") if future else f"last {dt.strftime('%A')}"
+        else:
+            relative = dt.strftime("%b %-d")
+        return relative, absolute
 
     # --- disk growth ---
 
@@ -1333,6 +1371,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
                     icon_name, css_class = "dialog-warning-symbolic", "warning"
                 else:
                     icon_name, css_class = "drive-harddisk-symbolic", "dim-label"
+                column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
                 row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
                 icon = Gtk.Image(icon_name=icon_name)
                 icon.add_css_class(css_class)
@@ -1342,7 +1381,16 @@ class ZaryaWindow(Adw.ApplicationWindow):
                     xalign=0, hexpand=True,
                 )
                 row.append(label)
-                self.health_box.append(row)
+                column.append(row)
+
+                level = Gtk.LevelBar(min_value=0, max_value=100, value=pct)
+                level.add_css_class("disk-level")
+                if critical:
+                    level.add_css_class("error")
+                elif warning:
+                    level.add_css_class("warning")
+                column.append(level)
+                self.health_box.append(column)
 
         if self._health_drives_error:
             error_label = Gtk.Label(label=f"Couldn't check drive health: {self._health_drives_error}", xalign=0, wrap=True)

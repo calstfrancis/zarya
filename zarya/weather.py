@@ -81,7 +81,10 @@ def format_sun_time(iso_str):
     if not iso_str:
         return None
     try:
-        return datetime.datetime.fromisoformat(iso_str).strftime("%H:%M")
+        # 12-hour with am/pm reads more naturally than 24-hour for a
+        # sunrise/sunset line ("7:03 AM" vs "07:03") — %-I drops the
+        # leading zero.
+        return datetime.datetime.fromisoformat(iso_str).strftime("%-I:%M %p")
     except ValueError:
         return None
 

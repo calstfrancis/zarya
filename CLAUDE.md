@@ -485,6 +485,53 @@ repeat(2, 1fr)` for that same Events-vs-cards split — rather than Events
 claiming most of the space and the status area being squeezed into a
 narrow fixed-width column as before.
 
+**A real overflow bug from making `wide_row` homogeneous (0.18.0)** — the
+0.17.3 fix above (`wide_row` homogeneous, Events vs. status grid split
+evenly) exposed a bug that had been latent since 0.17.0: `system_detail_body`
+(320px), `backups_detail_body` (320px) and `updates_detail_body` (360px)
+each carried a fixed `set_size_request(...)`, sized for when they were only
+ever a *popover's* content. Once the same widgets are reused inline in the
+wide grid (0.17.2), those minimums apply there too — System+Backups side by
+side each demanding ≥320px forces that whole row to ≥640px, and
+`wide_row`'s new 1:1 split then forces Events to match, so the total main
+content area could demand more width than was actually available once the
+sidebar's own width was added back in — overflowing the window and pushing
+the sidebar off-screen (confirmed from a live screenshot: the To-Do
+column's task labels were visibly clipped, showing "La", "Sc", "Se", "Wa").
+**Fixed at the root**: the size requests were moved off the shared
+detail-body widgets entirely and onto each compact card's own `Gtk.Popover`
+instead (`_make_status_card(..., popover_width=320)`, defaulting to 320,
+Updates passing 360) — a popover's width doesn't participate in the main
+window's layout at all, so it can carry a fixed size with zero effect on
+the wide grid, while the detail-body widget itself stays free to size
+purely from its content in both places it lives. General lesson for this
+"same widget, two homes" pattern (also used for `events_expander`): never
+give the *shared* widget a fixed size meant for only one of its homes —
+size the wrapper specific to that context (here, the popover) instead.
+
+**Other visual/language improvements bundled into the same 0.18.0 pass,
+also requested directly from the mockup:**
+- **Disk usage bars**: each entry in System's "Storage & Drives" now has a
+  `Gtk.LevelBar` under the usual text line. Deliberately does **not** use
+  LevelBar's built-in named offsets (`low`/`high`/`full`) — checked
+  Adwaita's actual shipped CSS (`gresource extract
+  .../libadwaita-1.so /org/gnome/Adwaita/styles/base.css`) and confirmed
+  `.full` maps to *success* (green) and `.low` to *warning*: correct for a
+  battery/volume meter where low is bad, backwards for a disk where full is
+  bad. Instead: no offsets are added, so the fill stays the default
+  not-empty accent blue; a `.disk-level` CSS class combined with our own
+  `warning`/`error` class (from the same thresholds already driving the
+  icon/text color, 85%/95%) overrides the fill color directly.
+- **Relative backup times**: `_format_backup_time` now returns
+  `(relative_text, absolute_text)` instead of one absolute string — "12 h
+  ago" / "in 11 h" / "yesterday 14:32" / "last Tuesday" / "Sep 3", with the
+  exact absolute timestamp moved to the label's tooltip rather than lost.
+- **Weather wording**: sunrise/sunset switched from 24-hour range notation
+  (`☀ 07:03 – 19:07`) to `Sunrise 7:03 AM · Sunset 7:07 PM`
+  (`weather.format_sun_time` now formats `%-I:%M %p`); the day-length delta
+  changed from the terse `−3m daylight` to the fuller `3 min less daylight
+  than yesterday`.
+
 ## Weather chart history
 
 The hourly weather display was originally a Cairo-drawn line/bar chart

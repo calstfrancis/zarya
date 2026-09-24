@@ -227,6 +227,16 @@ FONDWAVE_CSS = f"""
 .cal-dot-3 {{ background-color: #9141ac; }}
 .cal-dot-4 {{ background-color: #8B2F5C; }}
 .cal-dot-5 {{ background-color: #1a5fb4; }}
+
+/* Disk usage bars in the System card. libadwaita's own LevelBar offset
+   classes (.low/.high/.full) are the wrong semantic here — they colour
+   "full" as success-green, meant for meters where low is the bad end
+   (battery, volume). A full disk is the bad end, so severity is driven
+   directly from our own warning/critical thresholds instead of GTK's
+   offsets (never added), overriding the default not-empty (accent blue)
+   fill color only when actually warning/critical. */
+levelbar.disk-level.warning trough > block:not(.empty) {{ background-color: #e5a50a; }}
+levelbar.disk-level.error trough > block:not(.empty) {{ background-color: #e01b24; }}
 """
 
 

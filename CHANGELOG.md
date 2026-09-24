@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.18.0] "Full Picture" — disk usage bars, relative times, fixed wide-mode overflow
+
+- Fixed: the maximized wide layout's status-card area could overflow the
+  window and push the sidebar off-screen (visibly clipped To-Do text) once
+  Today's Events and the status cards were set to split the width evenly —
+  a leftover fixed minimum width on the card content, sized for when it
+  only ever lived in a popover, was forcing the whole layout wider than
+  the window.
+- Added: disk usage in the System card now shows a visual bar under each
+  drive's numbers, not just the percentage as text — colored amber/red at
+  the same 85%/95% thresholds already used elsewhere.
+- Changed: backup last/next run times are now relative ("12 h ago", "in 11
+  h", "yesterday 14:32", "last Tuesday") instead of a raw timestamp — hover
+  for the exact time.
+- Changed: the weather card's sunrise/sunset now reads "Sunrise 7:03 AM ·
+  Sunset 7:07 PM" instead of a 24-hour range, and the day-length delta
+  reads "3 min less daylight than yesterday" instead of "−3m daylight".
+
 ## [0.17.3] "Three Up" — status cards in a real 2-column grid, wide mode
 
 - Fixed: the maximized wide layout still read as two columns (Today's

@@ -39,6 +39,18 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.18.0" date="2026-09-24">
+      <description>
+        <p>
+          "Full Picture". Fixes the maximized wide layout overflowing and
+          pushing the sidebar off-screen. Disk usage in the System card now
+          shows a visual bar, not just a percentage. Backup run times are
+          now relative ("12 h ago", "in 11 h") instead of a raw timestamp,
+          with the exact time on hover. The weather card's sunrise/sunset
+          and day-length delta now read in plainer language.
+        </p>
+      </description>
+    </release>
     <release version="0.17.3" date="2026-09-24">
       <description>
         <p>

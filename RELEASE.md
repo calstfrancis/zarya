@@ -1,15 +1,23 @@
-# Zarya v0.17.3 "Three Up"
+# Zarya v0.18.0 "Full Picture"
 
 **Released:** 2026-09-24
 
 ## What's new
 
-- **Fixed:** the maximized wide layout still read as two columns (Today's
-  Events, one wide status strip) plus the sidebar — not the three columns
-  the layout was designed around. The status area is now a genuine
-  2-column grid: System and Backups side by side, Updates spanning the
-  full width below them. Today's Events and the status area now split the
-  available width evenly, instead of Events claiming most of it.
+- **Fixed:** the maximized wide layout's status-card area could overflow
+  the window and push the sidebar off-screen (clipped To-Do text) once
+  Today's Events and the status cards split the width evenly — a leftover
+  fixed width on the card content, sized for when it only ever lived in a
+  popover, was forcing the whole layout wider than the window.
+- **Disk usage bars:** the System card now shows a visual bar under each
+  drive's numbers, not just a percentage as text — colored amber/red at
+  the same thresholds already used elsewhere.
+- **Relative backup times:** last/next run times now read "12 h ago", "in
+  11 h", "yesterday 14:32", or "last Tuesday" instead of a raw timestamp —
+  hover for the exact time.
+- **Plainer weather language:** sunrise/sunset now reads "Sunrise 7:03 AM
+  · Sunset 7:07 PM" instead of a 24-hour range, and the day-length delta
+  reads "3 min less daylight than yesterday" instead of "−3m daylight".
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 

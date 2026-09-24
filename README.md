@@ -19,13 +19,15 @@ weather, your backup status, and today's calendar events — all in one window.
   and a color dot per calendar
 - System, Backups, and Updates as compact status cards — quiet when
   everything's fine, colored with a one-line detail when something needs
-  attention; click a card for the full detail (drive/battery/CPU health,
-  which home directories grew the most this week, the update log)
+  attention; click a card for the full detail (drive/battery/CPU health
+  with a visual usage bar per drive, which home directories grew the most
+  this week, relative backup run times, the update log)
 - Today's Events, System, Backups, and Updates all auto-refresh in the
   background; one refresh button in the header refreshes everything at once
-- Maximizing the window switches to a wider layout — events on the left,
-  status cards stacked in a column on the right — instead of one stretched
-  column
+- Maximizing the window switches to a genuine 3-column layout — Today's
+  Events on the left, a 2-column grid of status cards (each showing its
+  full detail inline, no click needed) on the right, sidebar beyond that —
+  instead of one stretched column
 - A sidebar combining a to-do list (synced with Google Tasks) and a small
   daily habit tracker with streaks and a weekly rollup — completed to-dos
   collapse out of the way, and delete buttons only show on hover
