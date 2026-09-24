@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.17.3] "Three Up" — status cards in a real 2-column grid, wide mode
+
+- Fixed: the maximized wide layout still read as two columns (Today's
+  Events, one wide status strip) plus the sidebar, not the three the
+  layout was designed around. The status area is now a genuine 2-column
+  grid — System and Backups side by side, Updates spanning the full width
+  below them — and Events/the status area now split the available width
+  evenly, instead of Events claiming most of it.
+
 ## [0.17.2] "Open Book" — wide layout shows full card detail, not a click-through
 
 - Fixed: in the maximized wide layout, System/Backups/Updates still only

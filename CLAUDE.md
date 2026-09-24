@@ -457,17 +457,33 @@ popover and the wide card's body at breakpoint time:
 `compact_card.get_popover().set_child(None)` +
 `wide_card.append(detail_body)` (or the exact reverse) — never two copies
 of the same content, same pattern as moving `events_expander`/the status
-column between `root_box` and `wide_row`. `self.wide_status_column`
-(replacing the old approach of just reusing `status_row` reoriented
-vertically) is a plain `Gtk.Box` holding the three wide cards, sized/
-hexpand-pinned the same way `status_row` was. Card color state
-(`.warning`/`.error`) now needs to reach *both* representations, so
+area between `root_box` and `wide_row`. Card color state (`.warning`/
+`.error`) now needs to reach *both* representations, so
 `_set_card_state(card, kind)` callers were replaced with
 `_set_status_severity(name, kind)`, which applies it to
 `{name}_card` and `{name}_wide_card` together — remember to call the
 severity setter, not `_set_card_state` directly, from any new code path
 that changes a card's state, or the wide-mode card will silently fall out
 of sync with the compact one.
+
+**Status area is a 2-column grid, not one stacked column (0.17.3)** — even
+with full inline detail (above), Cal's next screenshot still read as only
+two columns (Events, one wide status strip) plus the sidebar, not the
+mockup's three: the status area itself needs to look like its own set of
+columns, not a single vertical strip next to Events. Fixed two things
+together: (1) `self.wide_status_grid` (a `Gtk.Grid`, replacing the earlier
+`wide_status_column` `Gtk.Box`) arranges the three wide cards as
+System+Backups side by side (`attach(..., 0, 0, 1, 1)` /
+`attach(..., 1, 0, 1, 1)`) with Updates spanning both columns below
+(`attach(..., 0, 1, 2, 1)`), `column_homogeneous=True` so System/Backups
+get equal width; each wide card needs `valign=START` (`_make_wide_card`)
+so a shorter card (Backups) doesn't stretch to match a taller one
+(System) sharing its grid row. (2) `wide_row` itself is now
+`homogeneous=True`, so Events and the status grid split the available
+width evenly — matching the mockup's own `grid-template-columns:
+repeat(2, 1fr)` for that same Events-vs-cards split — rather than Events
+claiming most of the space and the status area being squeezed into a
+narrow fixed-width column as before.
 
 ## Weather chart history
 

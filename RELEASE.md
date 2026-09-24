@@ -1,16 +1,15 @@
-# Zarya v0.17.2 "Open Book"
+# Zarya v0.17.3 "Three Up"
 
 **Released:** 2026-09-24
 
 ## What's new
 
-- **Fixed:** in the maximized wide layout, System/Backups/Updates still
-  only showed the same one-line summary as the normal window. They now
-  show each card's full detail directly inline — storage bars, the backup
-  job list, the update log/history/Run Now button — with no click needed,
-  matching the design this layout was built from. The normal (narrow)
-  window is unchanged: cards there still show a one-line summary you click
-  for the detail popover.
+- **Fixed:** the maximized wide layout still read as two columns (Today's
+  Events, one wide status strip) plus the sidebar — not the three columns
+  the layout was designed around. The status area is now a genuine
+  2-column grid: System and Backups side by side, Updates spanning the
+  full width below them. Today's Events and the status area now split the
+  available width evenly, instead of Events claiming most of it.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 

@@ -39,6 +39,18 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.17.3" date="2026-09-24">
+      <description>
+        <p>
+          "Three Up". The maximized wide layout still read as two columns
+          plus the sidebar, not three. The status area is now a real
+          2-column grid — System and Backups side by side, Updates
+          spanning the full width below them — and Events/the status area
+          split the available width evenly instead of Events claiming most
+          of it.
+        </p>
+      </description>
+    </release>
     <release version="0.17.2" date="2026-09-24">
       <description>
         <p>

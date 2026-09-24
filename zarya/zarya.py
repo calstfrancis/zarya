@@ -431,20 +431,26 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # --- Wide layout (maximized-ish widths): Today's Events beside the
         # status cards shown in FULL (their detail body inline, not behind
         # a click-through popover) — see _on_wide_layout for how the same
-        # detail-body widgets move between a popover and here.
+        # detail-body widgets move between a popover and here. Events and
+        # the status area split the width evenly (like the mockup's
+        # `grid-template-columns: repeat(2, 1fr)`), and the status area
+        # itself is a 2-column grid — System and Backups side by side,
+        # Updates spanning the full width below — not a single stacked
+        # column, so it actually reads as its own set of columns rather
+        # than one more narrow strip next to Events.
         self.system_wide_card = self._make_wide_card("computer-symbolic", "System")
         self.backups_wide_card = self._make_wide_card("folder-remote-symbolic", "Backups")
         self.updates_wide_card = self._make_wide_card("software-update-available-symbolic", "Updates")
-        self.wide_status_column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
-        self.wide_status_column.append(self.system_wide_card)
-        self.wide_status_column.append(self.backups_wide_card)
-        self.wide_status_column.append(self.updates_wide_card)
+        self.wide_status_grid = Gtk.Grid(row_spacing=14, column_spacing=14, column_homogeneous=True)
+        self.wide_status_grid.attach(self.system_wide_card, 0, 0, 1, 1)
+        self.wide_status_grid.attach(self.backups_wide_card, 1, 0, 1, 1)
+        self.wide_status_grid.attach(self.updates_wide_card, 0, 1, 2, 1)
 
         # `wide_row` isn't parented anywhere yet — the breakpoint below
-        # moves `events_expander`/`wide_status_column` into it (and back
-        # out again below the min-width) rather than building two separate
+        # moves `events_expander`/`wide_status_grid` into it (and back out
+        # again below the min-width) rather than building two separate
         # copies of that content.
-        self.wide_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        self.wide_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14, homogeneous=True)
         wide_breakpoint = Adw.Breakpoint.new(
             Adw.BreakpointCondition.new_length(Adw.BreakpointConditionLengthType.MIN_WIDTH, 1200, Adw.LengthUnit.PX)
         )
@@ -641,6 +647,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         the full detail is always visible without a click."""
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         card.add_css_class("status-card")
+        card.set_valign(Gtk.Align.START)
+        card.set_hexpand(True)
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         header.append(Gtk.Image(icon_name=icon_name))
         title_label = Gtk.Label(label=title, xalign=0, hexpand=True)
@@ -675,11 +683,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def _on_wide_layout(self, _breakpoint):
         """Window widened past the breakpoint (typically maximized): move
         Today's Events and the status cards out of the single scrolling
-        column and side by side instead — Events on the left (still
-        growing to fill the space), the three status cards stacked in a
-        narrower column on the right with their full detail shown inline
-        (no click needed), so a maximized window uses its width instead of
-        just stretching a single column across it."""
+        column and side by side instead, splitting the width evenly —
+        Events on the left, a 2-column grid of the three status cards
+        (System/Backups side by side, Updates spanning below) on the right,
+        each card's full detail shown inline (no click needed) — so a
+        maximized window actually uses its width instead of just
+        stretching a single column across it."""
         self.root_box.remove(self.events_expander)
         self.root_box.remove(self.status_row)
         self.events_expander.set_hexpand(True)
@@ -691,10 +700,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
             compact_card.get_popover().set_child(None)
             wide_card.append(detail_body)
 
-        self.wide_status_column.set_size_request(320, -1)
-        self.wide_status_column.set_hexpand(False)
         self.wide_row.append(self.events_expander)
-        self.wide_row.append(self.wide_status_column)
+        self.wide_row.append(self.wide_status_grid)
         self.root_box.insert_child_after(self.wide_row, self.weather_expander)
 
     def _on_narrow_layout(self, _breakpoint):
@@ -703,7 +710,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         detail order."""
         self.root_box.remove(self.wide_row)
         self.wide_row.remove(self.events_expander)
-        self.wide_row.remove(self.wide_status_column)
+        self.wide_row.remove(self.wide_status_grid)
         self.events_expander.set_hexpand(False)
 
         for name in self._STATUS_CARD_NAMES:
