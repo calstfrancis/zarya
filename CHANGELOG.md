@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.19.0] "True to Form" — a closer pass against the actual mockup
+
+A full, area-by-area pass matching the app against the mockup it was built
+from, instead of incremental tweaks.
+
+- Changed: the weather card is now a "hero" layout — a large current
+  temperature, condition, and feels-like/high/low on the left; sunrise,
+  sunset, the day-length delta, and moon phase in a pill in the middle; the
+  AQI badge on the right. Replaces the original two lines of small text,
+  which had never actually been redesigned to match the mockup.
+- Changed: the hourly weather table's row order is now Hour/Temp/Rain/
+  Humidity, hours are spelled out ("1 PM" instead of "1p"), and the current
+  hour's column reads "Now" instead of repeating that hour's own time.
+- Changed: in the maximized wide layout, Disk Growth is now its own 4th
+  card in a real 2x2 grid (System/Backups on top, Updates/Disk Growth
+  below) instead of folded into System with Updates spanning the full
+  width. The normal (narrow) window is unchanged — Disk Growth still folds
+  into System's popover there.
+- Changed: the System card's drive/battery/temperature readings are now
+  one combined summary line ("2 drives healthy · CPU 58°C") instead of a
+  row per item, and disk usage uses friendly names ("System ( / )" / "Home"
+  instead of the raw filesystem path) with "{pct}% of {total}" instead of
+  "{used} / {total} ({pct}%)".
+- Changed: backup rows are now two columns (name, one combined status
+  string like "12 h ago · next in 11 h" or "Running · 1 h 6 min") instead
+  of four. The Backups card's own header now reads "{N} done · {M}
+  running".
+- Changed: every status card's header now shows its state inline next to
+  the title in the wide layout ("System ... Healthy"), matching the
+  mockup; the Updates card also gained a line reporting whether the
+  passwordless daily timer is actually enabled.
+
 ## [0.18.0] "Full Picture" — disk usage bars, relative times, fixed wide-mode overflow
 
 - Fixed: the maximized wide layout's status-card area could overflow the

@@ -1,23 +1,30 @@
-# Zarya v0.18.0 "Full Picture"
+# Zarya v0.19.0 "True to Form"
 
 **Released:** 2026-09-24
 
 ## What's new
 
-- **Fixed:** the maximized wide layout's status-card area could overflow
-  the window and push the sidebar off-screen (clipped To-Do text) once
-  Today's Events and the status cards split the width evenly — a leftover
-  fixed width on the card content, sized for when it only ever lived in a
-  popover, was forcing the whole layout wider than the window.
-- **Disk usage bars:** the System card now shows a visual bar under each
-  drive's numbers, not just a percentage as text — colored amber/red at
-  the same thresholds already used elsewhere.
-- **Relative backup times:** last/next run times now read "12 h ago", "in
-  11 h", "yesterday 14:32", or "last Tuesday" instead of a raw timestamp —
-  hover for the exact time.
-- **Plainer weather language:** sunrise/sunset now reads "Sunrise 7:03 AM
-  · Sunset 7:07 PM" instead of a 24-hour range, and the day-length delta
-  reads "3 min less daylight than yesterday" instead of "−3m daylight".
+A full, area-by-area pass matching the app against the mockup it was
+originally built from.
+
+- **The weather card is now a "hero" layout**: a large current temperature,
+  condition, and feels-like/high/low on the left, sunrise/sunset/day-length/
+  moon phase in a pill in the middle, and the AQI badge on the right —
+  replacing the original two lines of small text.
+- **The hourly table** now shows Hour/Temp/Rain/Humidity in that order,
+  spells out hours ("1 PM" instead of "1p"), and the current hour's column
+  simply reads "Now".
+- **Disk Growth is now its own card** in a real 2x2 grid in the maximized
+  layout (System/Backups on top, Updates/Disk Growth below), instead of
+  folded into System with Updates spanning the full width.
+- **System's drive/battery/temperature readings are now one summary line**
+  ("2 drives healthy · CPU 58°C"), and disk usage uses friendly names
+  ("System ( / )" / "Home") with a cleaner "{pct}% of {total}" format.
+- **Backup rows are now two columns** — name, and one combined status like
+  "12 h ago · next in 11 h" or "Running · 1 h 6 min" — instead of four.
+- **Every status card's header now shows its state inline** next to the
+  title in the wide layout, and the Updates card reports whether the
+  passwordless daily timer is actually enabled.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 

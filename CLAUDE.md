@@ -532,6 +532,107 @@ also requested directly from the mockup:**
   changed from the terse `−3m daylight` to the fuller `3 min less daylight
   than yesterday`.
 
+## A closer mockup match, area by area (0.19.0)
+
+After the overflow fix and touches above (0.18.0), Cal asked for a full,
+area-by-area pass against the actual mockup rather than incremental
+tweaks — the app had drifted from it in several concrete ways the earlier
+passes hadn't caught (each verified by re-reading the mockup's actual HTML,
+not from memory):
+
+- **Weather card rebuilt as a "hero" row**, replacing the original two
+  lines of small text (a leftover from before the mockup existed — earlier
+  passes only changed wording, never the layout itself). Now: a large
+  `weather-hero-temp` current temperature + condition + "Feels X° · High Y°
+  · Low Z°" on the left (`self.weather_temp_label`/`weather_condition_label`/
+  `weather_summary_label` — replacing the old `weather_current_label`,
+  removed), a `weather-sun-pill` translucent box with sunrise/sunset/
+  daylight-delta/moon phase in the middle, and the AQI badge pushed to the
+  far right via a `Gtk.Box(hexpand=True)` spacer — matching
+  `Wide.dc.html`'s hero row structure exactly (it has no separate location
+  line at all; the location name moved to `weather_condition_label`'s
+  tooltip instead, since the header subtitle already names the city).
+- **Hourly table**: row order changed to Hour/Temp/Rain/Humidity (was
+  Hour/Temp/Humidity/Rain), hour labels changed from compact "1p"/"2p" to
+  full "1 PM"/"2 PM" (`WeatherTable._format_hour`), and the current-hour
+  column's label text becomes the literal word "Now" instead of showing
+  that hour's own time redundantly — all matching the mockup's table
+  exactly, not just its "now" highlight color.
+- **Disk Growth split into its own 4th wide-layout card**, matching the
+  mockup's real 2x2 grid (System/Backups top, Updates/Disk-Growth bottom —
+  all four `1x1`, no spanning, `row_homogeneous=True` added alongside the
+  existing `column_homogeneous=True`) instead of System+Backups+Updates(-
+  spanning-both-columns) from 0.17.3. Narrow mode is **unchanged** — Disk
+  Growth still folds into System's popover there, since the *narrow*
+  mockup (`Main.dc.html`) only ever showed 3 cards; the wide and narrow
+  mockups genuinely disagree on this, and each layout now matches its own
+  reference exactly rather than forcing one design onto both. Implemented
+  with the same "same widgets, two homes" pattern used throughout this
+  feature: `self.disk_growth_separator`/`disk_growth_heading` (the
+  `_popover_heading` sub-section title+refresh button) move out of
+  `system_detail_body` into nothing (discarded, not shown) when going
+  wide — `disk_growth_wide_card` gets its own icon+title+refresh header via
+  `_make_wide_card`'s new `on_refresh` param instead, so the two contexts
+  don't end up with a duplicated "Growing This Week" title.
+- **System card content condensed** to match the mockup's plain, glanceable
+  style: disk rows use friendly names ("System ( / )" / "Home", not the raw
+  filesystem path) and "{pct}% of {total}" instead of "{used} / {total}
+  ({pct}%)"; the previous one-row-per-drive/battery/thermal-reading list is
+  now a single combined summary line ("2 drives healthy · CPU 58°C"),
+  falling back to naming the specific problem(s) instead only when
+  `any_problem` is true. The per-row status icon was dropped along with
+  it — status is still never color-alone (the house rule this used to cite
+  `STATE_ICONS` for), it's just that the *word* itself ("Healthy" in the
+  card header, "2 drives healthy" in the body, "Failed" in the Updates
+  header) now carries that meaning instead of an icon+color pairing;
+  `STATE_ICONS`/`STATE_COLORS` were deleted as genuinely unused once the
+  backup rows (below) stopped needing them too.
+- **Backup rows condensed to two columns** (name, one combined status
+  string) instead of name + state icon + state word + separate last/next
+  labels. `_format_backup_time`'s within-a-week phrasing changed from "last
+  Tuesday" to "3 days ago" (past) / a bare weekday name like "Mon" (future)
+  to match the mockup's "3 days ago" / "next Mon" exactly, and the caller
+  no longer prefixes the past time with "last " (was producing the doubled
+  "last 12 h ago") — only the future time gets a "next " prefix. A running
+  job shows "Running · {elapsed}" via the new `_format_duration(seconds)`
+  ("1 h 6 min"/"6 min") computed from `now - last_run` (the timer's last
+  trigger time doubles as "when this run started" for a currently-running
+  job). The Backups card's own header state changed from "Up to date"/
+  "Running" to the mockup's "{N} done · {M} running".
+- **Card header now shows state inline**, matching the mockup's
+  "`<h2>System</h2><span>Healthy</span>`" pattern, for the *wide* cards
+  specifically (the narrow compact card keeps its own title-then-value-
+  then-detail stack, which already reads fine at that width and isn't part
+  of what the mockup shows for narrow anyway). `_make_wide_card` now
+  returns `(card, state_label)` — a hidden-until-set label appended into
+  the header, between the title and the optional refresh button. New
+  `_set_status_value(name, text)` sets **both** `{name}_card_value` (the
+  compact card's own value line) and `{name}_wide_state` together, and
+  replaced every direct `self.xxx_card_value.set_label(...)` call site —
+  the same paired-setter approach `_set_status_severity` already
+  established for card color, applied to card text too, so the two
+  representations can't drift out of sync the way the disk-usage/hexpand
+  bugs (0.18.0) happened from a shared-widget assumption that turned out
+  not to hold. **Ordering gotcha hit while doing this**: the very first
+  `_set_status_value("system"/"backups", "Checking…")` calls used to run
+  immediately after each compact card was built, but the *wide* cards for
+  later status types don't exist yet at that point in `__init__` — moved
+  both calls to after all four wide cards are constructed instead of after
+  each compact one.
+- **Updates card**: `self.status_label` ("Ready to update"/"Already
+  updated today"/"Checking…"/"Updating…") is no longer shown in the body —
+  the card's own header state (above) already covers it, and showing both
+  was redundant. Kept as a real (just `visible=False`) widget rather than
+  deleted, since `start_updates`'s state machine still reads/writes it
+  throughout and ripping it out would have meant touching that logic too,
+  for a purely cosmetic change. Added a new static line reporting whether
+  the passwordless daily timer is actually installed —
+  `_refresh_updates_schedule_label` calls `system_updates.get_status()`
+  and shows "Automatic update runs daily at 04:00." when installed, or a
+  nudge to enable it in Preferences when it isn't — matching the mockup's
+  "Automatic update runs daily at 04:00" line, but only when it's actually
+  true (the mockup didn't need to consider that this can be off).
+
 ## Weather chart history
 
 The hourly weather display was originally a Cairo-drawn line/bar chart

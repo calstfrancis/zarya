@@ -126,6 +126,23 @@ FONDWAVE_CSS = f"""
 .fondwave-card label.error {{ color: #FF6B6B; font-weight: 700; }}
 .fondwave-card scrollbar {{ opacity: 0.6; }}
 
+/* Weather "hero" row — the big current temperature, condition, and the
+   sunrise/sunset/moon pill, matching the mockup's weather layout. */
+.fondwave-card label.weather-hero-temp {{
+  font-size: 2.4em;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}}
+.fondwave-card label.weather-hero-condition {{
+  font-size: 1.15em;
+  font-weight: 600;
+}}
+.fondwave-card .weather-sun-pill {{
+  background-color: rgba(36, 22, 54, 0.35);
+  border-radius: 10px;
+  padding: 6px 12px;
+}}
+
 /* Color-coded AQI badges — the six official US EPA AQI tiers, not just the
    generic accent/warning/error trio, so each reads as a genuinely
    different color at a glance. */

@@ -12,7 +12,7 @@ class WeatherTable(Gtk.Box):
             column_spacing=10, row_spacing=4,
             margin_top=4, margin_bottom=4, margin_start=4, margin_end=8,
         )
-        for row, title in enumerate(("Hour", "Temp", "Humidity", "Rain")):
+        for row, title in enumerate(("Hour", "Temp", "Rain", "Humidity")):
             label = Gtk.Label(label=title, xalign=1)
             label.add_css_class("dim-label")
             label.add_css_class("caption")
@@ -55,7 +55,7 @@ class WeatherTable(Gtk.Box):
         # No rain in the forecast window at all — hide the whole Rain row
         # rather than a column of 25 "0%" labels nobody needs to read.
         has_rain = any(round(p) > 0 for p in precip)
-        rain_row_label = self.label_grid.get_child_at(0, 3)
+        rain_row_label = self.label_grid.get_child_at(0, 2)
         if rain_row_label is not None:
             rain_row_label.set_visible(has_rain)
 
@@ -70,25 +70,26 @@ class WeatherTable(Gtk.Box):
         for i, hour_iso in enumerate(hours):
             is_now = self._hour_of(hour_iso) == now_hour
 
-            hour_label = Gtk.Label(label=self._format_hour(hour_iso))
+            hour_text = "Now" if is_now else self._format_hour(hour_iso)
+            hour_label = Gtk.Label(label=hour_text)
             temp_label = Gtk.Label(label=f"{round(temps[i])}°")
             humidity_label = Gtk.Label(label=f"{round(humidity[i])}%")
 
             for label in (hour_label, temp_label, humidity_label):
-                label.set_width_chars(4)
+                label.set_width_chars(6)
                 if is_now:
                     label.add_css_class("now-hour")
 
             self.data_grid.attach(hour_label, i, 0, 1, 1)
             self.data_grid.attach(temp_label, i, 1, 1, 1)
-            self.data_grid.attach(humidity_label, i, 2, 1, 1)
+            self.data_grid.attach(humidity_label, i, 3, 1, 1)
 
             if has_rain:
                 precip_label = Gtk.Label(label=f"{round(precip[i])}%")
-                precip_label.set_width_chars(4)
+                precip_label.set_width_chars(6)
                 if is_now:
                     precip_label.add_css_class("now-hour")
-                self.data_grid.attach(precip_label, i, 3, 1, 1)
+                self.data_grid.attach(precip_label, i, 2, 1, 1)
 
     def center_on_now(self):
         now_hour = datetime.datetime.now().hour
@@ -135,6 +136,6 @@ class WeatherTable(Gtk.Box):
         hh = cls._hour_of(iso_str)
         if hh is None:
             return iso_str
-        suffix = "a" if hh < 12 else "p"
+        suffix = "AM" if hh < 12 else "PM"
         h12 = hh % 12 or 12
-        return f"{h12}{suffix}"
+        return f"{h12} {suffix}"

@@ -163,15 +163,12 @@ def _check_unit_already_ran_today(callback):
     )
 
 
-STATE_COLORS = {
-    "ok": "success",
-    "failed": "error",
-    "running": "accent",
-    "paused": "dim-label",
-    "idle": "dim-label",
-    "skipped": "dim-label",
-}
-
+# Status is never color-alone anywhere in Zarya (matches the accessibility
+# commitments on calstfrancis.github.io) — a backup row's status is a
+# word ("Running", "Failed", "3 days ago") that distinguishes state on its
+# own, with color as a reinforcing signal, not the only one; there's no
+# separate icon+color-only pairing to maintain here the way there used to
+# be, since the wording itself already carries the meaning.
 STATE_LABELS = {
     "ok": "OK",
     "failed": "Failed",
@@ -179,18 +176,6 @@ STATE_LABELS = {
     "paused": "Paused",
     "idle": "Idle",
     "skipped": "Skipped",
-}
-
-# Status is never color-alone anywhere in Zarya (matches the accessibility
-# commitments on calstfrancis.github.io) — every colored state label pairs
-# with one of these icons too.
-STATE_ICONS = {
-    "ok": "emblem-ok-symbolic",
-    "failed": "dialog-error-symbolic",
-    "running": "content-loading-symbolic",
-    "paused": "media-playback-pause-symbolic",
-    "idle": "media-playback-stop-symbolic",
-    "skipped": "action-unavailable-symbolic",
 }
 
 
@@ -280,27 +265,44 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.root_box = root_box
 
         # --- Weather ---
-        weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        # A "hero" row (big current temp + condition/feels-high-low on the
+        # left, a sunrise/sunset/moon pill in the middle, the AQI badge
+        # pushed to the far right) replacing the old two lines of small
+        # text — matches the mockup's weather layout instead of the
+        # original, denser wording-only pass.
+        weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         weather_content.add_css_class("fondwave-card")
 
-        weather_top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        self.weather_summary_label = Gtk.Label(xalign=0, hexpand=True, wrap=True)
-        self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
-        weather_top_row.append(self.weather_summary_label)
-        self.weather_current_label = Gtk.Label(xalign=1)
-        self.weather_current_label.add_css_class("title-4")
-        weather_top_row.append(self.weather_current_label)
-        weather_content.append(weather_top_row)
+        hero_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
 
-        weather_second_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        self.weather_sun_label = Gtk.Label(xalign=0, hexpand=True)
+        self.weather_temp_label = Gtk.Label(xalign=0, valign=Gtk.Align.CENTER)
+        self.weather_temp_label.add_css_class("weather-hero-temp")
+        hero_row.append(self.weather_temp_label)
+
+        condition_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, valign=Gtk.Align.CENTER)
+        self.weather_condition_label = Gtk.Label(xalign=0)
+        self.weather_condition_label.add_css_class("weather-hero-condition")
+        self.weather_condition_label.set_label("Set a location in Preferences to see today's weather.")
+        condition_col.append(self.weather_condition_label)
+        self.weather_summary_label = Gtk.Label(xalign=0, wrap=True)
+        self.weather_summary_label.add_css_class("caption")
+        condition_col.append(self.weather_summary_label)
+        hero_row.append(condition_col)
+
+        self.weather_sun_label = Gtk.Label(xalign=0, wrap=True, valign=Gtk.Align.CENTER)
         self.weather_sun_label.add_css_class("caption")
-        self.weather_sun_label.add_css_class("dim-label")
-        weather_second_row.append(self.weather_sun_label)
-        self.weather_aqi_label = Gtk.Label(xalign=1, halign=Gtk.Align.END)
+        sun_pill = Gtk.Box(valign=Gtk.Align.CENTER)
+        sun_pill.add_css_class("weather-sun-pill")
+        sun_pill.append(self.weather_sun_label)
+        hero_row.append(sun_pill)
+
+        hero_row.append(Gtk.Box(hexpand=True))
+
+        self.weather_aqi_label = Gtk.Label(valign=Gtk.Align.START, halign=Gtk.Align.END)
         self.weather_aqi_label.add_css_class("caption")
-        weather_second_row.append(self.weather_aqi_label)
-        weather_content.append(weather_second_row)
+        hero_row.append(self.weather_aqi_label)
+
+        weather_content.append(hero_row)
 
         self.alerts_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         weather_content.append(self.alerts_box)
@@ -334,16 +336,23 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # System (+ Disk Growth folded in — both are "state of the machine")
         self.health_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.disk_growth_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        # Disk Growth is folded into System's popover in the narrow layout
+        # (one less card to scan when you have to click for it), but gets
+        # its own 4th card in the wide layout, matching the mockup's 2x2
+        # grid — self.disk_growth_separator/_heading move between the two
+        # homes in _on_wide_layout/_on_narrow_layout, same "same widget,
+        # two homes" pattern as the card detail bodies themselves.
+        self.disk_growth_separator = Gtk.Separator()
+        self.disk_growth_heading = self._popover_heading("Growing This Week", self.fetch_disk_growth)
         self.system_detail_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
         self.system_detail_body.append(self._popover_heading("Storage & Drives", self.fetch_system_health))
         self.system_detail_body.append(self.health_box)
-        self.system_detail_body.append(Gtk.Separator())
-        self.system_detail_body.append(self._popover_heading("Growing This Week", self.fetch_disk_growth))
+        self.system_detail_body.append(self.disk_growth_separator)
+        self.system_detail_body.append(self.disk_growth_heading)
         self.system_detail_body.append(self.disk_growth_box)
         self.system_card, self.system_card_value, self.system_card_detail = self._make_status_card(
             "computer-symbolic", "System", self.system_detail_body,
         )
-        self.system_card_value.set_label("Checking…")
         status_row.append(self.system_card)
 
         # Backups
@@ -357,7 +366,6 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.backups_card, self.backups_card_value, self.backups_card_detail = self._make_status_card(
             "folder-remote-symbolic", "Backups", self.backups_detail_body,
         )
-        self.backups_card_value.set_label("Checking…")
         status_row.append(self.backups_card)
 
         # Updates — the old bottom button row and its Update Log now live
@@ -365,9 +373,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # layout — see _on_wide_layout).
         self.updates_detail_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
 
-        self.status_label = Gtk.Label(xalign=0)
-        self.status_label.add_css_class("heading")
-        self.updates_detail_body.append(self.status_label)
+        # `status_label` still tracks "Ready to update"/"Already updated
+        # today"/"Checking…"/"Updating…" (start_updates's own state
+        # machine reads/writes it throughout), but isn't shown in the body
+        # any more — the card's own header state (`_set_status_value`,
+        # "Up to date"/"Failed"/…) already covers it, and showing both was
+        # redundant. Kept as a real widget (not deleted) since it's still
+        # the one place that state machine's current phase is recorded.
+        self.status_label = Gtk.Label(xalign=0, visible=False)
 
         result_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.result_icon = Gtk.Image()
@@ -375,6 +388,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
         result_box.append(self.result_icon)
         result_box.append(self.result_label)
         self.updates_detail_body.append(result_box)
+
+        self.updates_schedule_label = Gtk.Label(xalign=0, wrap=True)
+        self.updates_schedule_label.add_css_class("caption")
+        self.updates_schedule_label.add_css_class("dim-label")
+        self.updates_detail_body.append(self.updates_schedule_label)
 
         self.history_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         history_caption = Gtk.Label(label="Last 14 days:")
@@ -435,13 +453,26 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # Updates spanning the full width below — not a single stacked
         # column, so it actually reads as its own set of columns rather
         # than one more narrow strip next to Events.
-        self.system_wide_card = self._make_wide_card("computer-symbolic", "System")
-        self.backups_wide_card = self._make_wide_card("folder-remote-symbolic", "Backups")
-        self.updates_wide_card = self._make_wide_card("software-update-available-symbolic", "Updates")
-        self.wide_status_grid = Gtk.Grid(row_spacing=14, column_spacing=14, column_homogeneous=True)
+        self.system_wide_card, self.system_wide_state = self._make_wide_card("computer-symbolic", "System")
+        self.backups_wide_card, self.backups_wide_state = self._make_wide_card("folder-remote-symbolic", "Backups")
+        self.updates_wide_card, self.updates_wide_state = self._make_wide_card("software-update-available-symbolic", "Updates")
+        self.disk_growth_wide_card, _disk_growth_wide_state = self._make_wide_card(
+            "folder-symbolic", "Growing This Week", on_refresh=self.fetch_disk_growth,
+        )
+        self.wide_status_grid = Gtk.Grid(
+            row_spacing=14, column_spacing=14, column_homogeneous=True, row_homogeneous=True,
+        )
         self.wide_status_grid.attach(self.system_wide_card, 0, 0, 1, 1)
         self.wide_status_grid.attach(self.backups_wide_card, 1, 0, 1, 1)
-        self.wide_status_grid.attach(self.updates_wide_card, 0, 1, 2, 1)
+        self.wide_status_grid.attach(self.updates_wide_card, 0, 1, 1, 1)
+        self.wide_status_grid.attach(self.disk_growth_wide_card, 1, 1, 1, 1)
+
+        # Now that both the compact and wide cards exist, the initial
+        # "Checking…" value can reach both via _set_status_value — doing
+        # this any earlier (right after each compact card) fails, since
+        # the wide cards for later status types don't exist yet.
+        self._set_status_value("system", "Checking…")
+        self._set_status_value("backups", "Checking…")
 
         # `wide_row` isn't parented anywhere yet — the breakpoint below
         # moves `events_expander`/`wide_status_grid` into it (and back out
@@ -645,12 +676,19 @@ class ZaryaWindow(Adw.ApplicationWindow):
         return card, value_label, detail_label
 
     @staticmethod
-    def _make_wide_card(icon_name, title):
+    def _make_wide_card(icon_name, title, on_refresh=None):
         """The wide-layout counterpart of a status card: a real card with
-        an icon+title header, but no popover — its detail body is appended
-        directly below the header (by `_on_wide_layout`, moving the same
-        widget that lives in the compact card's popover in narrow mode), so
-        the full detail is always visible without a click."""
+        an icon+title+state header (matching the mockup's "System ...
+        Healthy" header line), but no popover — its detail body is
+        appended directly below the header (by `_on_wide_layout`, moving
+        the same widget that lives in the compact card's popover in narrow
+        mode), so the full detail is always visible without a click.
+        Returns (card, state_label) — the caller (or `_set_status_value`)
+        fills the state label's text; it stays hidden until then.
+        `on_refresh` is only needed for a card whose detail body doesn't
+        already carry its own refresh button (Disk Growth's did, when it
+        lived inside System's popover as a `_popover_heading` sub-section —
+        split out as its own card, it needs one of its own)."""
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         card.add_css_class("status-card")
         card.set_valign(Gtk.Align.START)
@@ -660,8 +698,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
         title_label = Gtk.Label(label=title, xalign=0, hexpand=True)
         title_label.add_css_class("heading")
         header.append(title_label)
+        state_label = Gtk.Label(xalign=1)
+        state_label.add_css_class("status-card-value")
+        state_label.set_visible(False)
+        header.append(state_label)
+        if on_refresh is not None:
+            refresh_button = Gtk.Button(icon_name="view-refresh-symbolic", has_frame=False)
+            refresh_button.set_tooltip_text(f"Refresh {title.lower()}")
+            refresh_button.connect("clicked", lambda *_: on_refresh())
+            header.append(refresh_button)
         card.append(header)
-        return card
+        return card, state_label
 
     @staticmethod
     def _set_card_state(card, kind):
@@ -679,6 +726,16 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._set_card_state(getattr(self, f"{name}_card"), kind)
         self._set_card_state(getattr(self, f"{name}_wide_card"), kind)
 
+    def _set_status_value(self, name, text):
+        """Sets the one-line state text ("Healthy", "Up to date", "3 done ·
+        1 running", …) on both the compact card's value line and the wide
+        card's header state label — `name` is "system"/"backups"/
+        "updates", matching `{name}_card_value`/`{name}_wide_state`."""
+        getattr(self, f"{name}_card_value").set_label(text)
+        wide_state = getattr(self, f"{name}_wide_state")
+        wide_state.set_label(text)
+        wide_state.set_visible(bool(text))
+
     # (name, detail_body attr, wide-card attr) for the three status cards —
     # walked by _on_wide_layout/_on_narrow_layout to move each card's detail
     # body between its popover (narrow layout) and its wide-card frame
@@ -690,11 +747,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
         """Window widened past the breakpoint (typically maximized): move
         Today's Events and the status cards out of the single scrolling
         column and side by side instead, splitting the width evenly —
-        Events on the left, a 2-column grid of the three status cards
-        (System/Backups side by side, Updates spanning below) on the right,
-        each card's full detail shown inline (no click needed) — so a
-        maximized window actually uses its width instead of just
-        stretching a single column across it."""
+        Events on the left, a 2x2 grid of four status cards (System,
+        Backups, Updates, and Disk Growth split out of System's popover
+        into its own card here) on the right, each card's full detail
+        shown inline (no click needed) — so a maximized window actually
+        uses its width instead of just stretching a single column across
+        it, and matches the mockup's 2x2 status grid exactly."""
         self.root_box.remove(self.events_expander)
         self.root_box.remove(self.status_row)
         self.events_expander.set_hexpand(True)
@@ -706,6 +764,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
             compact_card.get_popover().set_child(None)
             wide_card.append(detail_body)
 
+        self.system_detail_body.remove(self.disk_growth_separator)
+        self.system_detail_body.remove(self.disk_growth_heading)
+        self.system_detail_body.remove(self.disk_growth_box)
+        self.disk_growth_wide_card.append(self.disk_growth_box)
+
         self.wide_row.append(self.events_expander)
         self.wide_row.append(self.wide_status_grid)
         self.root_box.insert_child_after(self.wide_row, self.weather_expander)
@@ -713,7 +776,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def _on_narrow_layout(self, _breakpoint):
         """Window narrower than the breakpoint again — put Today's Events
         and the status cards back into their normal stacked, click-for-
-        detail order."""
+        detail order, and fold Disk Growth back into System's popover."""
         self.root_box.remove(self.wide_row)
         self.wide_row.remove(self.events_expander)
         self.wide_row.remove(self.wide_status_grid)
@@ -725,6 +788,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
             detail_body = getattr(self, f"{name}_detail_body")
             wide_card.remove(detail_body)
             compact_card.get_popover().set_child(detail_body)
+
+        self.disk_growth_wide_card.remove(self.disk_growth_box)
+        self.system_detail_body.append(self.disk_growth_separator)
+        self.system_detail_body.append(self.disk_growth_heading)
+        self.system_detail_body.append(self.disk_growth_box)
 
         self.root_box.insert_child_after(self.events_expander, self.weather_expander)
         self.root_box.insert_child_after(self.status_row, self.events_expander)
@@ -894,16 +962,19 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def fetch_weather(self):
         location = self.config.get("location", "").strip()
         if not location:
-            self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
-            self.weather_current_label.set_label("")
+            self.weather_condition_label.set_label("Set a location in Preferences to see today's weather.")
+            self.weather_condition_label.set_tooltip_text("")
+            self.weather_summary_label.set_label("")
+            self.weather_temp_label.set_label("")
             self.weather_aqi_label.set_label("")
             self.weather_sun_label.set_label("")
             self.weather_table.set_visible(False)
             self._clear_box(self.alerts_box)
             self._set_status_icon(self.weather_status_icon, "neutral")
             return
-        self.weather_summary_label.set_label(f"Loading weather for {location}…")
-        self.weather_current_label.set_label("")
+        self.weather_condition_label.set_label(f"Loading weather for {location}…")
+        self.weather_summary_label.set_label("")
+        self.weather_temp_label.set_label("")
         self.weather_aqi_label.set_label("")
 
         def worker():
@@ -930,8 +1001,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         threading.Thread(target=worker, daemon=True).start()
 
     def on_weather_error(self, message):
-        self.weather_summary_label.set_label(f"Couldn't get weather: {message}")
-        self.weather_current_label.set_label("")
+        self.weather_condition_label.set_label(f"Couldn't get weather: {message}")
+        self.weather_condition_label.set_tooltip_text("")
+        self.weather_summary_label.set_label("")
+        self.weather_temp_label.set_label("")
         self.weather_aqi_label.set_label("")
         self.weather_sun_label.set_label("")
         self.weather_table.set_visible(False)
@@ -962,19 +1035,21 @@ class ZaryaWindow(Adw.ApplicationWindow):
             lo = round(d["temp_min_c"])
             unit_letter = "C"
         desc = weather.describe(d["code"])
-        self.weather_summary_label.set_label(f"{d['label']}: {desc}, {hi}°{unit_letter} / {lo}°{unit_letter}")
+        self.weather_condition_label.set_label(desc)
+        self.weather_condition_label.set_tooltip_text(d["label"])
 
         if d.get("current_temp_c") is not None:
             convert = weather.celsius_to_fahrenheit if units == "fahrenheit" else (lambda c: c)
             cur = round(convert(d["current_temp_c"]))
-            current_text = f"{cur}°{unit_letter}"
-            if d.get("feels_like_c") is not None:
-                feels = round(convert(d["feels_like_c"]))
-                if feels != cur:
-                    current_text += f" · feels {feels}°{unit_letter}"
-            self.weather_current_label.set_label(current_text)
+            self.weather_temp_label.set_label(f"{cur}°")
+            summary = f"High {hi}° · Low {lo}°"
+            feels = round(convert(d["feels_like_c"])) if d.get("feels_like_c") is not None else None
+            if feels is not None and feels != cur:
+                summary = f"Feels {feels}° · {summary}"
+            self.weather_summary_label.set_label(summary)
         else:
-            self.weather_current_label.set_label("")
+            self.weather_temp_label.set_label(f"{hi}°")
+            self.weather_summary_label.set_label(f"High {hi}° · Low {lo}°")
 
         for css_class in (
             "aqi-good", "aqi-moderate", "aqi-unhealthy-sensitive",
@@ -1059,62 +1134,76 @@ class ZaryaWindow(Adw.ApplicationWindow):
     def on_backup_status(self, jobs, error):
         if error is not None:
             self._set_box_message(self.backup_box, f"Couldn't check backup status: {error}")
-            self.backups_card_value.set_label("Couldn't check")
+            self._set_status_value("backups", "Couldn't check")
             self.backups_card_detail.set_visible(False)
             self._set_status_severity("backups", "error")
             self._update_window_title()
             return
         if not jobs:
             self._set_box_message(self.backup_box, "No Pereprava jobs configured.")
-            self.backups_card_value.set_label("Not configured")
+            self._set_status_value("backups", "Not configured")
             self.backups_card_detail.set_visible(False)
             self._set_status_severity("backups", "ok")
             self._update_window_title()
             return
         failed = [j for j in jobs if j.get("state") == "failed"]
         running = [j for j in jobs if j.get("state") == "running"]
+        done = len(jobs) - len(running)
         if failed:
-            self.backups_card_value.set_label(f"{len(failed)} failed")
+            self._set_status_value("backups", f"{len(failed)} failed")
             self.backups_card_detail.set_label(", ".join(j.get("name", "?") for j in failed))
             self.backups_card_detail.set_visible(True)
             self._set_status_severity("backups", "error")
-        elif running:
-            self.backups_card_value.set_label("Running")
-            self.backups_card_detail.set_label(", ".join(j.get("name", "?") for j in running))
-            self.backups_card_detail.set_visible(True)
-            self._set_status_severity("backups", "ok")
         else:
-            self.backups_card_value.set_label("Up to date")
-            self.backups_card_detail.set_label(f"{len(jobs)} job{'s' if len(jobs) != 1 else ''}")
-            self.backups_card_detail.set_visible(True)
+            summary = f"{done} done"
+            if running:
+                summary += f" · {len(running)} running"
+            self._set_status_value("backups", summary)
+            self.backups_card_detail.set_visible(False)
             self._set_status_severity("backups", "ok")
         self._clear_box(self.backup_box)
         for job in jobs:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             state = job.get("state", "idle")
-            state_icon = Gtk.Image(icon_name=STATE_ICONS.get(state, "action-unavailable-symbolic"))
-            state_icon.add_css_class(STATE_COLORS.get(state, "dim-label"))
-            row.append(state_icon)
             name_label = Gtk.Label(label=job.get("name", "?"), xalign=0, hexpand=True)
             row.append(name_label)
-            state_label = Gtk.Label(label=STATE_LABELS.get(state, state))
-            state_label.add_css_class(STATE_COLORS.get(state, "dim-label"))
-            row.append(state_label)
-            last_run_text, last_run_abs = self._format_backup_time(job.get("last_run"))
-            last_run_text = last_run_text or job.get("last_run_text")
-            if last_run_text:
-                last_run_label = Gtk.Label(label=f"last {last_run_text}")
-                last_run_label.add_css_class("dim-label")
-                if last_run_abs:
-                    last_run_label.set_tooltip_text(last_run_abs)
-                row.append(last_run_label)
-            next_run_text, next_run_abs = self._format_backup_time(job.get("next_run"))
-            if next_run_text:
-                next_run_label = Gtk.Label(label=f"next {next_run_text}")
-                next_run_label.add_css_class("dim-label")
-                if next_run_abs:
-                    next_run_label.set_tooltip_text(next_run_abs)
-                row.append(next_run_label)
+
+            tooltip_lines = []
+            if state == "running":
+                elapsed_text = None
+                last_run = job.get("last_run")
+                if isinstance(last_run, (int, float)) and last_run > 0:
+                    try:
+                        started = datetime.datetime.fromtimestamp(last_run / 1_000_000)
+                        elapsed_text = self._format_duration((datetime.datetime.now() - started).total_seconds())
+                    except (OverflowError, OSError, ValueError):
+                        elapsed_text = None
+                status_text = f"Running · {elapsed_text}" if elapsed_text else "Running"
+                status_css = "accent"
+                name_label.add_css_class("accent")
+            elif state == "failed":
+                last_text, last_abs = self._format_backup_time(job.get("last_run"))
+                status_text = f"Failed · last OK {last_text}" if last_text else "Failed"
+                status_css = "error"
+                if last_abs:
+                    tooltip_lines.append(f"Last OK: {last_abs}")
+            else:
+                last_text, last_abs = self._format_backup_time(job.get("last_run"))
+                last_text = last_text or job.get("last_run_text")
+                next_text, next_abs = self._format_backup_time(job.get("next_run"))
+                pieces = [p for p in (last_text, f"next {next_text}" if next_text else None) if p]
+                status_text = " · ".join(pieces) if pieces else STATE_LABELS.get(state, state)
+                status_css = "dim-label"
+                if last_abs:
+                    tooltip_lines.append(f"Last: {last_abs}")
+                if next_abs:
+                    tooltip_lines.append(f"Next: {next_abs}")
+
+            status_label = Gtk.Label(label=status_text)
+            status_label.add_css_class(status_css)
+            if tooltip_lines:
+                status_label.set_tooltip_text("\n".join(tooltip_lines))
+            row.append(status_label)
             self.backup_box.append(row)
         self._update_window_title()
 
@@ -1149,10 +1238,21 @@ class ZaryaWindow(Adw.ApplicationWindow):
         elif dt.date() == now.date() - datetime.timedelta(days=1):
             relative = f"yesterday {dt.strftime('%H:%M')}"
         elif seconds < 7 * 86400:
-            relative = dt.strftime("%A") if future else f"last {dt.strftime('%A')}"
+            days = round(seconds / 86400)
+            relative = dt.strftime("%a") if future else f"{days} days ago"
         else:
             relative = dt.strftime("%b %-d")
         return relative, absolute
+
+    @staticmethod
+    def _format_duration(seconds):
+        """"1 h 6 min" / "6 min" — for a running job's elapsed time, not a
+        point in time, so it doesn't go through _format_backup_time."""
+        seconds = max(0, round(seconds))
+        hours, minutes = divmod(seconds // 60, 60)
+        if hours:
+            return f"{hours} h {minutes} min"
+        return f"{minutes} min"
 
     # --- disk growth ---
 
@@ -1349,6 +1449,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
         problem_texts = []
         healthy_bits = []
 
+        # Disks: a friendly name ("System ( / )" / "Home", not the raw
+        # path), "{pct}% of {total}" (not the longer "used / total (pct%)"),
+        # and a level bar — matching the mockup's compact storage rows. No
+        # per-row icon: the level bar's color plus the percentage text
+        # already carries the same signal a status icon would, without
+        # another visual element competing for attention.
         if self._health_disks_error:
             error_label = Gtk.Label(label=f"Couldn't check disk space: {self._health_disks_error}", xalign=0, wrap=True)
             error_label.add_css_class("dim-label")
@@ -1361,26 +1467,19 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 critical = pct >= 95
                 warning = pct >= 85
                 any_problem = any_problem or critical
+                name = "System ( / )" if disk["path"] == "/" else "Home"
                 if critical or warning:
-                    problem_texts.append(f"{disk['path']} is {pct:.0f}% full")
+                    problem_texts.append(f"{name} is {pct:.0f}% full")
                 else:
-                    healthy_bits.append(f"{disk['path']} {pct:.0f}% full")
-                if critical:
-                    icon_name, css_class = "dialog-error-symbolic", "error"
-                elif warning:
-                    icon_name, css_class = "dialog-warning-symbolic", "warning"
-                else:
-                    icon_name, css_class = "drive-harddisk-symbolic", "dim-label"
+                    healthy_bits.append(f"{name} {pct:.0f}% full")
+
                 column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
                 row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-                icon = Gtk.Image(icon_name=icon_name)
-                icon.add_css_class(css_class)
-                row.append(icon)
-                label = Gtk.Label(
-                    label=f"{disk['path']} — {self._format_bytes(used)} / {self._format_bytes(total)} ({pct:.0f}%)",
-                    xalign=0, hexpand=True,
-                )
-                row.append(label)
+                name_label = Gtk.Label(label=name, xalign=0, hexpand=True)
+                row.append(name_label)
+                value_label = Gtk.Label(label=f"{pct:.0f}% of {self._format_bytes(total)}")
+                value_label.add_css_class("dim-label")
+                row.append(value_label)
                 column.append(row)
 
                 level = Gtk.LevelBar(min_value=0, max_value=100, value=pct)
@@ -1392,10 +1491,13 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 column.append(level)
                 self.health_box.append(column)
 
+        # Drives, battery, and CPU/GPU temperature all fold into a single
+        # summary line (mockup: "3 drives healthy · CPU 66°C") instead of
+        # one row per item — the per-drive model names and individual
+        # readings are still available in `problem_texts` when something's
+        # actually wrong, which is the only time a name matters.
         if self._health_drives_error:
-            error_label = Gtk.Label(label=f"Couldn't check drive health: {self._health_drives_error}", xalign=0, wrap=True)
-            error_label.add_css_class("dim-label")
-            self.health_box.append(error_label)
+            problem_texts_note = f"Couldn't check drive health: {self._health_drives_error}"
         else:
             healthy_drive_count = 0
             for drive in self._health_drives:
@@ -1405,20 +1507,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
                     healthy_drive_count += 1
                 else:
                     problem_texts.append(f"{drive['model']} — {drive['detail']}")
-                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-                icon = Gtk.Image(icon_name="emblem-ok-symbolic" if drive["healthy"] else "dialog-error-symbolic")
-                icon.add_css_class("success" if drive["healthy"] else "error")
-                row.append(icon)
-                label = Gtk.Label(label=f"{drive['model']} — {drive['detail']}", xalign=0, hexpand=True)
-                row.append(label)
-                self.health_box.append(row)
             if healthy_drive_count:
                 healthy_bits.append(f"{healthy_drive_count} drive{'s' if healthy_drive_count != 1 else ''} healthy")
+            problem_texts_note = None
 
         if self._health_batteries_error:
-            error_label = Gtk.Label(label=f"Couldn't check battery health: {self._health_batteries_error}", xalign=0, wrap=True)
-            error_label.add_css_class("dim-label")
-            self.health_box.append(error_label)
+            pass
         else:
             for battery in self._health_batteries:
                 any_row = True
@@ -1428,31 +1522,13 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 any_problem = any_problem or critical
                 if critical or warning:
                     problem_texts.append(f"Battery health at {capacity:.0f}%")
-                if critical:
-                    icon_name, css_class = "dialog-error-symbolic", "error"
-                elif warning:
-                    icon_name, css_class = "dialog-warning-symbolic", "warning"
                 else:
-                    icon_name, css_class = "battery-good-symbolic", "dim-label"
-                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-                icon = Gtk.Image(icon_name=icon_name)
-                icon.add_css_class(css_class)
-                row.append(icon)
-                text = f"Battery — {battery.get('percentage', 0):.0f}% charged"
-                if capacity is not None:
-                    text += f", {capacity:.0f}% battery health"
-                if battery.get("cycles"):
-                    text += f" ({battery['cycles']} cycles)"
-                label = Gtk.Label(label=text, xalign=0, hexpand=True)
-                row.append(label)
-                self.health_box.append(row)
+                    healthy_bits.append(f"Battery {battery.get('percentage', 0):.0f}%")
                 # No battery present (most desktops) isn't an error, and
                 # isn't reported at all — nothing meaningful to show.
 
         if self._health_thermal_error:
-            error_label = Gtk.Label(label=f"Couldn't check temperatures: {self._health_thermal_error}", xalign=0, wrap=True)
-            error_label.add_css_class("dim-label")
-            self.health_box.append(error_label)
+            pass
         else:
             for reading in self._health_thermal:
                 any_row = True
@@ -1465,24 +1541,18 @@ class ZaryaWindow(Adw.ApplicationWindow):
                     problem_texts.append(f"{kind_label} at {celsius:.0f}°C")
                 else:
                     healthy_bits.append(f"{kind_label} {celsius:.0f}°C")
-                if critical:
-                    icon_name, css_class = "dialog-error-symbolic", "error"
-                elif warning:
-                    icon_name, css_class = "dialog-warning-symbolic", "warning"
-                else:
-                    icon_name, css_class = "emblem-ok-symbolic", "dim-label"
-                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-                icon = Gtk.Image(icon_name=icon_name)
-                icon.add_css_class(css_class)
-                row.append(icon)
-                label = Gtk.Label(
-                    label=f"{kind_label} — {celsius:.0f}°C",
-                    xalign=0, hexpand=True,
-                )
-                row.append(label)
-                self.health_box.append(row)
                 # No hwmon chip we recognize (VM, unusual hardware) isn't
                 # an error — nothing meaningful to show, same as batteries.
+
+        summary_bits = problem_texts if any_problem else healthy_bits
+        if summary_bits:
+            summary_label = Gtk.Label(label=" · ".join(summary_bits), xalign=0, wrap=True)
+            summary_label.add_css_class("error" if any_problem else "dim-label")
+            self.health_box.append(summary_label)
+        if problem_texts_note:
+            note_label = Gtk.Label(label=problem_texts_note, xalign=0, wrap=True)
+            note_label.add_css_class("dim-label")
+            self.health_box.append(note_label)
 
         if (
             not any_row and not self._health_disks_error and not self._health_drives_error
@@ -1495,16 +1565,16 @@ class ZaryaWindow(Adw.ApplicationWindow):
             or self._health_batteries_error or self._health_thermal_error
         )
         if any_problem:
-            self.system_card_value.set_label("Needs attention")
+            self._set_status_value("system", "Needs attention")
             self.system_card_detail.set_label(" · ".join(problem_texts) or "See details")
             self.system_card_detail.set_visible(True)
             self._set_status_severity("system", "error")
         elif any_error:
-            self.system_card_value.set_label("Partly checked")
+            self._set_status_value("system", "Partly checked")
             self.system_card_detail.set_visible(False)
             self._set_status_severity("system", "ok")
         else:
-            self.system_card_value.set_label("Healthy")
+            self._set_status_value("system", "Healthy")
             self.system_card_detail.set_label(" · ".join(healthy_bits) if healthy_bits else "")
             self.system_card_detail.set_visible(bool(healthy_bits))
             self._set_status_severity("system", "ok")
@@ -1662,11 +1732,22 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def _set_status_text(self, text):
         self.status_label.set_label(text)
-        self.updates_card_value.set_label(text)
+        self._set_status_value("updates", text)
         self.updates_card_detail.set_visible(False)
         self._set_status_severity("updates", "ok")
 
+    def _refresh_updates_schedule_label(self):
+        def on_status(status):
+            if status["installed"]:
+                self.updates_schedule_label.set_label("Automatic update runs daily at 04:00.")
+            else:
+                self.updates_schedule_label.set_label(
+                    "Enable automatic daily updates in Preferences > Updates."
+                )
+        system_updates.get_status(on_status)
+
     def refresh_status(self):
+        self._refresh_updates_schedule_label()
         if self.already_ran_today():
             self.status_label.set_label("Already updated today")
             self.run_button.set_label("Run Anyway")
@@ -1680,14 +1761,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if result is None:
             self.result_icon.set_from_icon_name("dialog-question-symbolic")
             self.result_label.set_label("No update has run yet")
-            self.updates_card_value.set_label("Never run")
+            self._set_status_value("updates", "Never run")
             self.updates_card_detail.set_visible(False)
             self._set_status_severity("updates", "ok")
         elif result.get("success"):
             self.result_icon.set_from_icon_name("emblem-ok-symbolic")
             self.result_label.set_label(f"Last update succeeded at {result.get('time', '?')}")
             self.result_label.add_css_class("success")
-            self.updates_card_value.set_label("Up to date")
+            self._set_status_value("updates", "Up to date")
             self.updates_card_detail.set_label(f"Ran {result.get('time', '?')}")
             self.updates_card_detail.set_visible(True)
             self._set_status_severity("updates", "ok")
@@ -1695,7 +1776,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.result_icon.set_from_icon_name("dialog-error-symbolic")
             self.result_label.set_label(f"Last update failed at {result.get('time', '?')}")
             self.result_label.add_css_class("error")
-            self.updates_card_value.set_label("Failed")
+            self._set_status_value("updates", "Failed")
             self.updates_card_detail.set_label(f"At {result.get('time', '?')} — Run Anyway to retry")
             self.updates_card_detail.set_visible(True)
             self._set_status_severity("updates", "error")

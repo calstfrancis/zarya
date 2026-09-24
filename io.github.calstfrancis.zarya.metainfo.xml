@@ -39,6 +39,21 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.19.0" date="2026-09-24">
+      <description>
+        <p>
+          "True to Form". A full pass matching the app against the mockup
+          it was built from. The weather card is now a "hero" layout with
+          a large current temperature, condition, and a sunrise/sunset/
+          moon pill. Disk Growth is now its own card in a real 2x2 grid in
+          the maximized layout. System's drive/battery/temperature
+          readings are now one combined summary line, and backup rows are
+          two columns with a combined relative-time status instead of
+          four. Every card's header now shows its state inline next to the
+          title in the wide layout.
+        </p>
+      </description>
+    </release>
     <release version="0.18.0" date="2026-09-24">
       <description>
         <p>
