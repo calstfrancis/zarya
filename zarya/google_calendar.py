@@ -202,6 +202,7 @@ def fetch_today_events(refresh_token, calendar_ids=None):
                 "start": start,
                 "end": end,
                 "all_day": all_day,
+                "calendar_id": calendar_id,
             })
     events.sort(key=lambda e: e["start"])
     return events

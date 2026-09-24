@@ -52,6 +52,13 @@ class WeatherTable(Gtk.Box):
         if child is not None:
             child.set_label(f"Temp (°{temp_unit})")
 
+        # No rain in the forecast window at all — hide the whole Rain row
+        # rather than a column of 25 "0%" labels nobody needs to read.
+        has_rain = any(round(p) > 0 for p in precip)
+        rain_row_label = self.label_grid.get_child_at(0, 3)
+        if rain_row_label is not None:
+            rain_row_label.set_visible(has_rain)
+
         child = self.data_grid.get_first_child()
         while child is not None:
             next_child = child.get_next_sibling()
@@ -66,9 +73,8 @@ class WeatherTable(Gtk.Box):
             hour_label = Gtk.Label(label=self._format_hour(hour_iso))
             temp_label = Gtk.Label(label=f"{round(temps[i])}°")
             humidity_label = Gtk.Label(label=f"{round(humidity[i])}%")
-            precip_label = Gtk.Label(label=f"{round(precip[i])}%")
 
-            for label in (hour_label, temp_label, humidity_label, precip_label):
+            for label in (hour_label, temp_label, humidity_label):
                 label.set_width_chars(4)
                 if is_now:
                     label.add_css_class("now-hour")
@@ -76,7 +82,13 @@ class WeatherTable(Gtk.Box):
             self.data_grid.attach(hour_label, i, 0, 1, 1)
             self.data_grid.attach(temp_label, i, 1, 1, 1)
             self.data_grid.attach(humidity_label, i, 2, 1, 1)
-            self.data_grid.attach(precip_label, i, 3, 1, 1)
+
+            if has_rain:
+                precip_label = Gtk.Label(label=f"{round(precip[i])}%")
+                precip_label.set_width_chars(4)
+                if is_now:
+                    precip_label.add_css_class("now-hour")
+                self.data_grid.attach(precip_label, i, 3, 1, 1)
 
     def center_on_now(self):
         now_hour = datetime.datetime.now().hour
@@ -88,13 +100,20 @@ class WeatherTable(Gtk.Box):
         if idx is None:
             return
 
+        # Polling get_width() until it's nonzero used to give up after 20
+        # attempts (~600ms), which wasn't always enough for the table to be
+        # realized and allocated on first launch — the real, user-visible
+        # bug this was fixed for: the hourly strip silently stayed scrolled
+        # to its leftmost (oldest) hours instead of centering on "now".
+        # ~3s of polling at a light interval costs nothing once the width
+        # does resolve (it stops immediately), and is a much safer margin.
         attempts = [0]
 
         def attempt():
             width = self.data_grid.get_width()
             if width <= 0:
                 attempts[0] += 1
-                return attempts[0] < 20
+                return attempts[0] < 100
             n = max(1, len(self._hours))
             col_width = width / n
             adj = self.scroller.get_hadjustment()

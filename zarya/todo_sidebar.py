@@ -9,6 +9,7 @@ class TodoSidebar(Gtk.Box):
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.tasks = []
+        self.show_completed = False
         self.set_size_request(240, -1)
         self.set_margin_top(12)
         self.set_margin_bottom(12)
@@ -170,6 +171,35 @@ class TodoSidebar(Gtk.Box):
         self.fetch_tasks()
         return False
 
+    def _make_task_row(self, task):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+        check = Gtk.CheckButton(active=task.get("done", False))
+        check.set_tooltip_text("Mark not done" if task.get("done") else "Mark done")
+        check.connect("toggled", self.on_toggle, task)
+        row.append(check)
+
+        text = task.get("text", "")
+        label = Gtk.Label(xalign=0, hexpand=True, wrap=True)
+        if task.get("done"):
+            label.add_css_class("dim-label")
+            label.set_markup(f"<s>{GLib.markup_escape_text(text)}</s>")
+        else:
+            label.set_label(text)
+        row.append(label)
+
+        remove_button = Gtk.Button(icon_name="edit-delete-symbolic", has_frame=False, opacity=0)
+        remove_button.set_tooltip_text("Remove")
+        remove_button.connect("clicked", lambda _b, t=task: self.on_remove(t))
+        row.append(remove_button)
+        _wire_hover_reveal(row, remove_button)
+
+        return row
+
+    def on_toggle_completed_visible(self, _button):
+        self.show_completed = not self.show_completed
+        self.render()
+
     def render(self):
         child = self.list_box.get_first_child()
         while child is not None:
@@ -184,26 +214,34 @@ class TodoSidebar(Gtk.Box):
                 self.list_box.append(empty_label)
             return
 
-        for task in self.tasks:
-            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        pending = [t for t in self.tasks if not t.get("done")]
+        done = [t for t in self.tasks if t.get("done")]
 
-            check = Gtk.CheckButton(active=task.get("done", False))
-            check.set_tooltip_text("Mark not done" if task.get("done") else "Mark done")
-            check.connect("toggled", self.on_toggle, task)
-            row.append(check)
+        for task in pending:
+            self.list_box.append(self._make_task_row(task))
 
-            text = task.get("text", "")
-            label = Gtk.Label(xalign=0, hexpand=True, wrap=True)
-            if task.get("done"):
-                label.add_css_class("dim-label")
-                label.set_markup(f"<s>{GLib.markup_escape_text(text)}</s>")
-            else:
-                label.set_label(text)
-            row.append(label)
+        if done:
+            toggle = Gtk.Button(has_frame=False, halign=Gtk.Align.START)
+            toggle.set_child(Gtk.Label(label=f"{'▾' if self.show_completed else '▸'} Completed ({len(done)})"))
+            toggle.add_css_class("dim-label")
+            toggle.add_css_class("caption")
+            toggle.connect("clicked", self.on_toggle_completed_visible)
+            self.list_box.append(toggle)
+            if self.show_completed:
+                for task in done:
+                    self.list_box.append(self._make_task_row(task))
+        elif not pending:
+            empty_label = Gtk.Label(label="No tasks yet — add one above.", xalign=0, wrap=True)
+            empty_label.add_css_class("dim-label")
+            self.list_box.append(empty_label)
 
-            remove_button = Gtk.Button(icon_name="edit-delete-symbolic", has_frame=False)
-            remove_button.set_tooltip_text("Remove")
-            remove_button.connect("clicked", lambda _b, t=task: self.on_remove(t))
-            row.append(remove_button)
 
-            self.list_box.append(row)
+def _wire_hover_reveal(row, *widgets):
+    """Fades `widgets` (typically a delete/remove button) in only while the
+    pointer is over `row` — CSS `:hover` doesn't reliably bubble from a
+    plain container to its children in GTK4, so this drives it directly
+    off pointer enter/leave instead."""
+    controller = Gtk.EventControllerMotion()
+    controller.connect("enter", lambda *_a: [w.set_opacity(1) for w in widgets])
+    controller.connect("leave", lambda *_a: [w.set_opacity(0) for w in widgets])
+    row.add_controller(controller)

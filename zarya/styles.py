@@ -181,6 +181,43 @@ FONDWAVE_CSS = f"""
   background-color: {TERMINAL_FG};
   color: {TERMINAL_BG};
 }}
+
+/* Status cards (System/Backups/Updates) — a flat card that only takes on
+   color when there's actually something to flag, so a normal morning is
+   visually quiet and a real problem stands out immediately. */
+.status-card {{
+  border-radius: 12px;
+  padding: 8px 10px;
+}}
+.status-card.warning {{
+  background-color: alpha(#e5a50a, 0.12);
+  border: 1px solid alpha(#e5a50a, 0.4);
+}}
+.status-card.error {{
+  background-color: alpha(#e01b24, 0.1);
+  border: 1px solid alpha(#e01b24, 0.35);
+}}
+.status-card .status-card-title {{ font-size: 0.85em; opacity: 0.75; }}
+.status-card .status-card-value {{ font-weight: 700; }}
+.status-card.warning .status-card-value {{ color: #9c6e03; }}
+.status-card.error .status-card-value {{ color: #a51d2d; }}
+
+/* A small "now" divider in Today's Events, between past and future items. */
+.now-marker-line {{ background-color: #3584e4; min-height: 2px; border-radius: 1px; }}
+.now-marker-label {{ color: #3584e4; font-weight: 700; }}
+
+/* Deterministic per-calendar dot colors (index = hash(calendar_id) % 6) —
+   not Google's own calendar colors (a separate, extra API field), just
+   enough for same-calendar events to visually match each other. */
+.cal-dot-0, .cal-dot-1, .cal-dot-2, .cal-dot-3, .cal-dot-4, .cal-dot-5 {{
+  border-radius: 999px;
+}}
+.cal-dot-0 {{ background-color: #3584e4; }}
+.cal-dot-1 {{ background-color: #26a269; }}
+.cal-dot-2 {{ background-color: #c64600; }}
+.cal-dot-3 {{ background-color: #9141ac; }}
+.cal-dot-4 {{ background-color: #8B2F5C; }}
+.cal-dot-5 {{ background-color: #1a5fb4; }}
 """
 
 

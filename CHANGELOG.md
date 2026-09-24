@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.16.0] "Clear Deck" — reordered, decluttered main window
+
+A full pass on the main window's layout and information order, following a
+UI/UX review against real (unmaximized) screenshots — the actual daily use
+case, not the maximized one.
+
+- Changed: System Health, Backups, and Disk Growth — previously three (or
+  four) always-expanded sections stacked down the page — are now three
+  compact status cards (System, Backups, Updates) in a single row. A card
+  only turns amber/red and shows a detail line when something actually
+  needs attention; click one to open a popover with the full detail (Disk
+  Growth now lives inside the System popover, since both are "state of the
+  machine"). The common case — everything fine — is now one quiet row
+  instead of a full page of "OK" lines.
+- Changed: the bottom button row (Start at login / Run Now / Cancel / Hide
+  to Tray) is gone. "Start at login" moved to Preferences > Updates;
+  Run Now/Cancel, the run history dots, and the Update Log moved into the
+  Updates card's popover. Closing the window still just hides it to the
+  tray, same as before.
+- Changed: Habits moved out of the main scrolling column into the sidebar,
+  right below To-Do — both are "things I check off today," so they now live
+  together.
+- Changed: the window's title bar now shows today's date and a one-line
+  status ("Good afternoon · Toronto · all clear", or "N things need
+  attention") instead of just "Zarya". A single refresh button in the
+  header replaced each section's own refresh button.
+- Fixed: the hourly weather strip could fail to scroll to "now" on first
+  launch and silently stay at its leftmost (oldest) hours — the width-ready
+  poll gave up too early (~600ms); it now waits up to ~3s.
+- Added: the weather card hides its Rain row entirely on a day with no rain
+  in the forecast, instead of a row of 25 "0%" labels.
+- Added: Today's Events now shows a "now" divider between past and
+  upcoming events, dims events that have already ended, and gives each
+  event a small colored dot for which calendar it came from.
+- Added: completed to-dos collapse under a "Completed (N)" toggle instead
+  of staying inline forever; each to-do's and habit's delete button now
+  only appears on hover instead of sitting there permanently.
+
 ## [0.15.0] "True Horizon" — gradient actually matches sunrise/sunset, daylight delta, rain/snow tint
 
 - Fixed: the weather card's gradient assumed a fixed 12-hour day centered on

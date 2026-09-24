@@ -37,7 +37,7 @@ Single source of truth: `version` in `pyproject.toml`, mirrored in `zarya/__init
 |---|---|
 | `zarya/zarya.py` | Entry point — `ZaryaApplication`/`ZaryaWindow`, the update run state machine, section building (`_make_section`), config/marker/result I/O |
 | `zarya/onboarding.py` | First-run wizard (`OnboardingWindow`) — city + optional Google Account connect, gated on `config["onboarded"]` |
-| `zarya/preferences.py` | `PreferencesWindow` — Weather (location/units), Google (connect/disconnect, covers Calendar + Tasks), a live-fetched calendar checklist (`config["calendar_ids"]`), and Updates (Enable/Disable the passwordless daily timer, via `system_updates.py`) |
+| `zarya/preferences.py` | `PreferencesWindow` — Weather (location/units), Google (connect/disconnect, covers Calendar + Tasks), a live-fetched calendar checklist (`config["calendar_ids"]`), and Updates (a "Start at login" `Adw.SwitchRow` since 0.16.0, plus Enable/Disable the passwordless daily timer, via `system_updates.py`) |
 | `zarya/system_updates.py` | Installs/removes the root systemd unit + timer for passwordless daily updates — see **Passwordless daily updates** below |
 | `zarya/weather.py` | Open-Meteo geocoding + hourly forecast + current/apparent temperature fetch, stdlib `urllib` only |
 | `zarya/weather_table.py` | `WeatherTable` — hourly numbers grid (not a chart; see **Weather chart history** below) |
@@ -49,7 +49,7 @@ Single source of truth: `version` in `pyproject.toml`, mirrored in `zarya/__init
 | `zarya/habits.py` | A small local daily habit tracker — add/remove habits, mark done for today, current streak — no external API. Durable data (not disposable cache), so it lives at `~/.local/share/zarya/habits.json` via `GLib.get_user_data_dir()`, unlike the cache-dir state above |
 | `zarya/google_calendar.py` | OAuth2 + PKCE loopback flow (shared by Calendar and Tasks), `get_access_token()` (public, reused by `google_tasks.py`), `list_calendars()` + multi-calendar `fetch_today_events()` — stdlib only, no Google client libraries |
 | `zarya/google_tasks.py` | Google Tasks API v1 CRUD (`@default` list) — list/add/set-done/delete, reuses `google_calendar.get_access_token()` |
-| `zarya/todo_sidebar.py` | `TodoSidebar` — persistent right-side panel, backed entirely by Google Tasks (no local storage); shows a connect prompt when not connected |
+| `zarya/todo_sidebar.py` | `TodoSidebar` — persistent right-side panel, backed entirely by Google Tasks (no local storage); shows a connect prompt when not connected. Completed tasks collapse under a "Completed (N)" toggle; sits above the Habits card in the sidebar (`zarya.py` builds that outer `sidebar_box`, since 0.16.0) |
 | `zarya/keyring.py` | libsecret wrappers — Google refresh token storage (schema `io.github.calstfrancis.zarya.google_calendar`), covers both Calendar and Tasks scopes on one token |
 | `zarya/tray.py` | `TrayIcon` — hand-rolled StatusNotifierItem D-Bus service (see **System tray** below) |
 | `zarya/styles.py` | Fondwave CSS: the weather card's gradient, and the Konsole-scheme colors shared by the log view and the to-do sidebar |
@@ -291,19 +291,101 @@ gap this section describes — for the *system* part specifically. This
 remains the whole mechanism on a machine where `install.sh` hasn't been run
 yet — kept as-is, not replaced.
 
-## Window layout — scrollable content, pinned action bar
+## Window layout — scrollable content (0.16.0: no more pinned action bar)
 
-The main window's dashboard content (`root_box`, all the sections) lives
-inside a `Gtk.ScrolledWindow` (vertical only), not directly in the toast
-overlay — a fixed `set_default_size(980, 780)` doesn't fit on every real
-screen (a real bug on a T490's display: the bottom button row rendered
-below the visible screen with no way to reach it). The "Start at
-login"/"Run Now"/"Cancel"/"Hide to Tray" row is added via
-`Adw.ToolbarView.add_bottom_bar`, not appended into the scrollable
-`root_box`, so it always stays visible regardless of window height or
-screen size. Any future section added to the dashboard goes in `root_box`
-(scrolls); anything that must always be reachable (like these controls)
-goes on the toolbar view's top/bottom bars instead.
+The main window's dashboard content (`root_box`: Weather, Today's Events,
+the status row) lives inside a `Gtk.ScrolledWindow` (vertical only), not
+directly in the toast overlay — a fixed window size doesn't fit on every
+real screen (a real bug on a T490's display, back when there was a bottom
+button row: it rendered below the visible screen with no way to reach it).
+Since 0.16.0 there's no bottom bar at all — see **Main window redesign**
+below for why and where its contents moved. Any future section added to the
+main column goes in `root_box` (scrolls); anything that must always be
+reachable belongs on the toolbar view's top bar (the header) instead, same
+as `self.restart_banner`.
+
+## Main window redesign (0.16.0)
+
+A UI/UX pass triggered by Cal sharing two real screenshots (unmaximized —
+"how it'll usually be used" — and maximized) and asking for better use of
+space, ordering, and friendliness. Mockups were built first as a canvas
+Artifact, reviewed, then implemented directly in GTK (not a pixel port of
+the HTML mockup — GTK/libadwaita has its own idioms). Kept: `root_box`
+scrolling, the sidebar `Gtk.Paned`, the Fondwave weather-card styling,
+every existing fetch/render function's actual logic. Changed:
+
+- **System Health, Backups, and Disk Growth folded into three compact
+  status cards** (System, Backups, Updates) in one row (`status_row`),
+  replacing what used to be three-to-four always-expanded `Gtk.Expander`
+  sections plus the bottom button row. Each card is a `Gtk.MenuButton`
+  (`_make_status_card`) whose face shows a title + one-line value + an
+  optional detail line, and whose popover holds the existing detail
+  content boxes (`self.health_box`, `self.backup_box`, etc. — unchanged
+  widgets, just re-parented into a popover instead of an expander). A card
+  only gets the `.warning`/`.error` CSS class (`_set_card_state`) when
+  there's actually something to flag — Disk Growth moved into the System
+  popover specifically (both are "state of the machine"), rather than
+  getting a fourth card of its own. This is where most of the vertical
+  space savings comes from: the common "everything's fine" case is one
+  quiet row instead of a full page of "OK" lines.
+- **The bottom button row is gone.** "Start at login" moved to Preferences
+  > Updates as an `Adw.SwitchRow` (`PreferencesWindow.autostart_row`,
+  wired via an `on_autostart_toggled(enabled: bool)` callback into
+  `ZaryaWindow.on_autostart_toggled` — the callback signature changed from
+  a `Gtk.Switch` "state-set" handler `(switch, state) -> bool` to a plain
+  `(enabled) -> None`, since there's no switch object here to return
+  through anymore). Run Now/Cancel, the run-history dots, and the Update
+  Log all moved into the Updates card's popover — same widgets
+  (`self.run_button`, `self.history_box`, `self.text_view`, …), just
+  re-parented. `ZaryaApplication.on_onboarding_finished` no longer touches
+  a `self.window.autostart_switch` (deleted) — it just writes the
+  autostart file directly, same as before the switch existed.
+- **Habits moved into the sidebar**, appended below `TodoSidebar` in a new
+  `sidebar_box` that's the paned's actual end child (previously
+  `TodoSidebar` was the end child directly) — both To-Do and Habits are
+  "things I check off today," so they read better together than Habits
+  being a separate section at the bottom of the scrolling main column.
+  `self.habits_box` itself (and `render_habits()`) didn't change at all,
+  only its container.
+- **The header now carries a date/status title** (`self.window_title`, an
+  `Adw.WindowTitle`) and a single "refresh everything" button
+  (`on_refresh_all_clicked`), replacing each section's own per-section
+  refresh button (weather/events/health/backups/disk-growth all had one).
+  `_update_window_title()` recomputes "Thursday, September 24" / "Good
+  afternoon · Toronto · all clear" (or "N things need attention", counted
+  from which status cards currently carry `.warning`/`.error`) — called
+  after every render that could change a card's state, plus once every
+  600s off the existing gradient-refresh timer.
+- **The restart-after-update prompt became a banner, not a dialog** — see
+  **Restart-after-update prompt** below, updated for this release.
+- Smaller UX fixes bundled into the same pass: the weather table's Rain
+  row hides entirely on a no-rain day (`WeatherTable.set_data` computes
+  `has_rain` from the precip array); Today's Events gained a "now" divider
+  line (`_make_now_line`) between past and upcoming events, dimmed past
+  events (`opacity(0.55)` on the row), and a per-calendar color dot
+  (`cal-dot-0..5` CSS classes, index = `hash(calendar_id) % 6` — not
+  Google's real calendar colors, just enough for same-calendar events to
+  visually match each other); completed to-dos collapse under a
+  "Completed (N)" toggle in `TodoSidebar` instead of staying inline
+  forever; every delete/remove button (to-dos, habits) now only shows on
+  hover, via `_wire_hover_reveal` — a small helper using
+  `Gtk.EventControllerMotion` to set opacity directly, not CSS `:hover`,
+  since that pseudo-class doesn't reliably bubble from a plain GTK4
+  container to its children the way it does in web CSS.
+- **Fixed a real, independently-found bug while in this code anyway**:
+  `WeatherTable.center_on_now()`'s poll for the grid's width to become
+  nonzero gave up after ~600ms (20 attempts × 30ms), which wasn't always
+  enough on first launch — the hourly strip would silently stay scrolled
+  to its leftmost (oldest) hours instead of centering on "now". Bumped to
+  ~3s (100 attempts); the poll still stops immediately once the width
+  resolves, so this costs nothing in the normal case.
+
+No `Adw.Breakpoint`/responsive column-count work was done here — the
+mockups sketched a 3-column layout for the maximized case, but the status
+cards + sidebar merge already remove most of the scrolling/clutter problem
+on its own, and adaptive multi-column layout is a separable, larger piece
+of work. Worth revisiting if Cal wants the maximized case to reflow rather
+than just stretch.
 
 ## Weather chart history
 
@@ -395,9 +477,13 @@ Growth is computed against the closest snapshot that's ≥7 days old (not
 "exactly 7 days old", since the app won't always be open at the same time
 every day). Shows "collecting a week of history" until one exists.
 
-## Habits section (0.13.0)
+## Habits section (0.13.0, moved into the sidebar in 0.16.0)
 
-A minimal local daily habit tracker — no external account, no API. Habits
+A minimal local daily habit tracker — no external account, no API. Lived as
+its own always-expanded section at the bottom of the scrolling main column
+through 0.13.0–0.15.0; moved into the sidebar below To-Do in 0.16.0 (see
+**Main window redesign**) — same box, same `render_habits()`, just
+re-parented. Habits
 are added/removed via a `+` button in the section header (`Adw.AlertDialog`
 + `Adw.EntryRow`, the modern libadwaita dialog pattern rather than a
 one-off `Adw.Window`). Each row is a flat, name-as-label toggle button
@@ -420,7 +506,7 @@ call, no new API. Shown next to sunrise/sunset in the weather card. Accurate
 to well under a day, which is all a dashboard reading needs; don't reach
 for a real ephemeris library here.
 
-## Restart-after-update prompt (0.14.0)
+## Restart-after-update prompt (0.14.0, changed to a banner in 0.16.0)
 
 `ZaryaWindow.finish()` (the update run's completion handler) calls
 `maybe_offer_restart(full_text)` on success, which does a plain substring
@@ -431,7 +517,14 @@ already-running Zarya process keeps executing its old code in memory until
 actually relaunched, whether the update ran interactively (Run Now) or
 silently in the background (the daily autorun poll) — so this can pop the
 window back up (`self.present()`) even if it was hidden in the tray.
-"Restart Now" launches a fresh `flatpak run io.github.calstfrancis.zarya`
+**0.14.0 showed this as an `Adw.AlertDialog`; 0.16.0 changed it to
+`self.restart_banner` (`Adw.Banner`, revealed via `set_revealed(True)`)** —
+part of the same pass that removed the modal dialog pattern from the main
+window in favor of quieter, non-blocking UI, and specifically less
+disruptive than a modal if this fires from the silent background autorun
+while Cal is mid-task elsewhere; it stays up (not auto-dismissed) until
+"Restart Now" is clicked or the window is next closed. "Restart Now" itself
+is unchanged: launches a fresh `flatpak run io.github.calstfrancis.zarya`
 via `flatpak-spawn --host` (same pattern as the "Open Pereprava" button)
 before quitting this instance — spawn-then-quit, not quit-then-spawn, so
 there's no gap with no Zarya running if the spawn itself fails.

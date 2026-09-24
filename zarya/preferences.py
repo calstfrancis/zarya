@@ -11,13 +11,17 @@ from . import google_calendar, keyring, system_updates
 
 
 class PreferencesWindow(Adw.PreferencesWindow):
-    def __init__(self, parent, config, save_config, on_weather_changed, on_units_changed, on_google_changed):
+    def __init__(
+        self, parent, config, save_config, on_weather_changed, on_units_changed, on_google_changed,
+        autostart_enabled=False, on_autostart_toggled=None,
+    ):
         super().__init__(transient_for=parent, modal=True)
         self.config = config
         self.save_config = save_config
         self.on_weather_changed = on_weather_changed
         self.on_units_changed = on_units_changed
         self.on_google_changed = on_google_changed
+        self.on_autostart_toggled = on_autostart_toggled
 
         weather_page = Adw.PreferencesPage(title="Weather", icon_name="weather-clear-symbolic")
         weather_group = Adw.PreferencesGroup(title="Location")
@@ -74,6 +78,17 @@ class PreferencesWindow(Adw.PreferencesWindow):
         self.add(calendar_page)
 
         updates_page = Adw.PreferencesPage(title="Updates", icon_name="software-update-available-symbolic")
+
+        startup_group = Adw.PreferencesGroup(title="Startup")
+        self.autostart_row = Adw.SwitchRow(
+            title="Start at login",
+            subtitle="Runs quietly in the tray; the daily update check still happens either way.",
+        )
+        self.autostart_row.set_active(autostart_enabled)
+        self.autostart_row.connect("notify::active", self.on_autostart_row_toggled)
+        startup_group.add(self.autostart_row)
+        updates_page.add(startup_group)
+
         updates_group = Adw.PreferencesGroup(
             title="Unattended Daily Updates",
             description=(
@@ -105,6 +120,10 @@ class PreferencesWindow(Adw.PreferencesWindow):
         self._refresh_calendar_status()
         self._refresh_calendars_list()
         self._refresh_updates_status()
+
+    def on_autostart_row_toggled(self, row, _pspec):
+        if self.on_autostart_toggled is not None:
+            self.on_autostart_toggled(row.get_active())
 
     def _refresh_calendar_status(self):
         connected = bool(keyring.lookup_google_refresh_token())

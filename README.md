@@ -11,25 +11,23 @@ weather, your backup status, and today's calendar events — all in one window.
   purpose.
 - Skips re-running if it already updated today; persistent success/failure status
 - Offers to restart itself right after an update installs a new version of Zarya
-- Optional "Start at login" toggle
 - Daily weather report (Open-Meteo, no API key) as an hourly temperature/
-  humidity/rain table, styled with the Fondwave palette
-- Backup status read from [Pereprava](https://github.com/calstfrancis/pereprava)'s
-  rclone/rsync jobs, with a button to open it directly
-- System Health: disk space and drive SMART status (via UDisks2, no root
-  needed to read it)
-- Today's Google Calendar events, and a persistent to-do sidebar synced with
-  Google Tasks — one OAuth2 + PKCE connection covers both; only a refresh
-  token is stored, in the system keyring
-- Today's Events, System Health, and Backups auto-refresh in the background
-- Sunrise/sunset times, today's moon phase, and a day-length delta from
-  yesterday, plus a weather-card gradient that tracks the real hours of
-  daylight/dark (not just clock-noon) and tints for current rain/snow
-- Disk Growth: which home directories have grown the most in the past week
-- Habits: a small daily habit tracker with streaks and a weekly rollup, no
-  account needed
+  humidity/rain table, styled with the Fondwave palette; sunrise/sunset,
+  today's moon phase, a day-length delta from yesterday, a gradient that
+  tracks the real hours of daylight/dark, and a tint for current rain/snow
+- Today's Google Calendar events, with a "now" divider, dimmed past events,
+  and a color dot per calendar
+- System, Backups, and Updates as compact status cards — quiet when
+  everything's fine, colored with a one-line detail when something needs
+  attention; click a card for the full detail (drive/battery/CPU health,
+  which home directories grew the most this week, the update log)
+- Today's Events, System, Backups, and Updates all auto-refresh in the
+  background; one refresh button in the header refreshes everything at once
+- A sidebar combining a to-do list (synced with Google Tasks) and a small
+  daily habit tracker with streaks and a weekly rollup — completed to-dos
+  collapse out of the way, and delete buttons only show on hover
 - A real system tray icon (StatusNotifierItem); autostart runs quietly in
-  the background instead of opening a window
+  the background instead of opening a window (toggle in Preferences > Updates)
 - First-run onboarding wizard for city and Google Account setup
 
 Zarya runs host `zypper`/`flatpak`/`systemctl` commands via `flatpak-spawn --host`
@@ -52,8 +50,8 @@ flatpak run io.github.calstfrancis.zarya
 ```
 
 First launch walks through a short onboarding wizard (city, optional Google
-Calendar connect). Toggle "Start at login" in the window to have it run
-automatically each day.
+Calendar connect). Toggle "Start at login" in Preferences > Updates to have
+it run automatically each day.
 
 ## Passwordless daily updates
 

@@ -20,11 +20,9 @@
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
       <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", sunrise/sunset, day-length delta, moon phase, a rain/snow gradient tint, Environment Canada weather alerts, and the AQI</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
-      <li>System Health: disk space, drive SMART status, battery health, and CPU/GPU temperature</li>
-      <li>Today's events from any combination of your Google calendars</li>
-      <li>A persistent to-do sidebar synced with Google Tasks</li>
-      <li>Disk Growth: which home directories have grown the most this week</li>
-      <li>Habits: a small daily habit tracker with streaks, no account needed</li>
+      <li>System, Backups, and Updates as compact status cards that only need a click when something needs attention — click one for the full detail, including drive/battery/CPU health and which home directories grew the most this week</li>
+      <li>Today's events from any combination of your Google calendars, with a "now" divider and a color dot per calendar</li>
+      <li>A sidebar combining a to-do list synced with Google Tasks and a small daily habit tracker with streaks, no account needed for the latter</li>
       <li>Desktop notification and run history</li>
       <li>System tray icon; "Start at login" (on by default) runs quietly in the background instead of opening a window</li>
     </ul>
@@ -41,6 +39,21 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.16.0" date="2026-09-24">
+      <description>
+        <p>
+          "Clear Deck". A full layout pass: System Health, Backups, and Disk
+          Growth are now three compact status cards that only need a click
+          when something needs attention, instead of several always-expanded
+          sections. The bottom button row is gone — Start at login moved to
+          Preferences, and Run Now/the update log moved into the Updates
+          card. Habits moved into the sidebar next to To-Do. The window
+          title now shows today's date and a one-line status. Also fixes the
+          hourly weather strip sometimes failing to scroll to "now" on first
+          launch.
+        </p>
+      </description>
+    </release>
     <release version="0.15.0" date="2026-09-24">
       <description>
         <p>
