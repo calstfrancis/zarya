@@ -23,6 +23,9 @@ weather, your backup status, and today's calendar events — all in one window.
   which home directories grew the most this week, the update log)
 - Today's Events, System, Backups, and Updates all auto-refresh in the
   background; one refresh button in the header refreshes everything at once
+- Maximizing the window switches to a wider layout — events on the left,
+  status cards stacked in a column on the right — instead of one stretched
+  column
 - A sidebar combining a to-do list (synced with Google Tasks) and a small
   daily habit tracker with streaks and a weekly rollup — completed to-dos
   collapse out of the way, and delete buttons only show on hover

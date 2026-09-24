@@ -380,12 +380,40 @@ every existing fetch/render function's actual logic. Changed:
   ~3s (100 attempts); the poll still stops immediately once the width
   resolves, so this costs nothing in the normal case.
 
-No `Adw.Breakpoint`/responsive column-count work was done here — the
-mockups sketched a 3-column layout for the maximized case, but the status
-cards + sidebar merge already remove most of the scrolling/clutter problem
-on its own, and adaptive multi-column layout is a separable, larger piece
-of work. Worth revisiting if Cal wants the maximized case to reflow rather
-than just stretch.
+**Maximized-width reflow added immediately after, same 0.16.0 release**,
+once asked for specifically: `self.wide_row` (a plain `Gtk.Box`, unparented
+at construction) plus one `Adw.Breakpoint` on the window itself
+(`Adw.BreakpointCondition.new_length(MIN_WIDTH, 1200px)`), connected to
+`_on_wide_layout`/`_on_narrow_layout`. Rather than building two separate
+copies of Today's Events and the status row for narrow vs. wide, the
+breakpoint's `apply`/`unapply` handlers **re-parent the same widgets**:
+`self.root_box.remove(...)` them out of the single scrolling column,
+`self.status_row.set_orientation(VERTICAL)` (so the three cards stack in a
+narrower column instead of sitting in a row), append both into
+`self.wide_row`, then `self.root_box.insert_child_after(self.wide_row,
+self.weather_expander)`. `unapply` does the exact reverse, restoring
+`HORIZONTAL`/`homogeneous=True` on `status_row` and putting
+`events_expander`/`status_row` back into `root_box` directly.
+`Gtk.Box.insert_child_after` is what makes this work without needing to
+track/restore explicit child indices. Each status card needs
+`set_hexpand(True)` (added in `_make_status_card`) so it actually fills the
+narrower wide-mode column instead of shrinking to its label's natural
+width — harmless in the narrow/homogeneous row too, since `homogeneous`
+already forces equal widths there regardless of `hexpand`.
+
+**Testing this needed a real window manager**, not just Xvfb — under bare
+Xvfb (no WM), `Gtk.Window.maximize()` is a no-op (nothing handles the
+maximize hint), so a naive headless test showed no reflow at all and looked
+like a bug that wasn't one. Confirmed by adding `fluxbox` (available on
+this machine) between starting Xvfb and launching the app in the manual
+test session — maximizing then genuinely resizes the window and the
+breakpoint fires. Not wired into `capture-screenshots.sh` (that script
+deliberately captures only the normal unmaximized window, per its own
+comments), so this reflow has no automated screenshot coverage yet; verify
+by hand (or with a similar fluxbox-backed manual run) if touching this code
+again. Also verified maximize → unmaximize → maximize → unmaximize in one
+session doesn't leak or duplicate widgets — `wide_row` ends each cycle
+empty and unparented, ready to be reused next time.
 
 ## Weather chart history
 

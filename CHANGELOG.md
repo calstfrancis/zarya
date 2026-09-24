@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.0] "Wide Deck" — maximized window now uses its width
+
+- Added: maximizing the window (or otherwise widening it past ~1200px) now
+  switches to a wider layout — Today's Events on the left, the System/
+  Backups/Updates status cards stacked in a column on the right — instead
+  of the same single stretched-out column from the normal window size. The
+  layout switches back automatically below that width.
+
 ## [0.16.0] "Clear Deck" — reordered, decluttered main window
 
 A full pass on the main window's layout and information order, following a

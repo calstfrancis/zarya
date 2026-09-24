@@ -277,6 +277,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             margin_start=12,
             margin_end=12,
         )
+        self.root_box = root_box
 
         # --- Weather ---
         weather_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -307,17 +308,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.weather_table = WeatherTable()
         self.weather_table.set_visible(False)
         weather_content.append(self.weather_table)
-        weather_expander, self.weather_status_icon = self._make_section(
+        self.weather_expander, self.weather_status_icon = self._make_section(
             "weather", "Weather", weather_content
         )
-        root_box.append(weather_expander)
+        root_box.append(self.weather_expander)
 
         # --- Today's events ---
         self.events_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        events_expander, self.events_status_icon = self._make_section(
+        self.events_expander, self.events_status_icon = self._make_section(
             "events", "Today's Events & Due Dates", self.events_box
         )
-        root_box.append(events_expander)
+        root_box.append(self.events_expander)
 
         # --- Status row: System, Backups, Updates ---
         # Folded from what used to be three-to-four separate always-expanded
@@ -327,6 +328,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # attention — the common case (everything fine) should be quiet,
         # not a full page of "OK" rows.
         status_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10, homogeneous=True)
+        self.status_row = status_row
         root_box.append(status_row)
 
         # System (+ Disk Growth folded in — both are "state of the machine")
@@ -424,6 +426,20 @@ class ZaryaWindow(Adw.ApplicationWindow):
             "software-update-available-symbolic", "Updates", updates_popover_content,
         )
         status_row.append(self.updates_card)
+
+        # --- Wide layout (maximized-ish widths): Today's Events beside a
+        # single column of status cards, instead of both stacked full-width
+        # under Weather. `wide_row` isn't parented anywhere yet — the
+        # breakpoint below moves `events_expander`/`status_row` into it (and
+        # back out again below the min-width) rather than building two
+        # separate copies of that content.
+        self.wide_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        wide_breakpoint = Adw.Breakpoint.new(
+            Adw.BreakpointCondition.new_length(Adw.BreakpointConditionLengthType.MIN_WIDTH, 1200, Adw.LengthUnit.PX)
+        )
+        wide_breakpoint.connect("apply", self._on_wide_layout)
+        wide_breakpoint.connect("unapply", self._on_narrow_layout)
+        self.add_breakpoint(wide_breakpoint)
 
         # --- Habits (lives in the sidebar, below To-Do — see main_paned below) ---
         self.habits_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
@@ -577,6 +593,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         card.add_css_class("status-card")
         card.add_css_class("flat")
         card.set_valign(Gtk.Align.START)
+        card.set_hexpand(True)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True)
         top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -611,6 +628,36 @@ class ZaryaWindow(Adw.ApplicationWindow):
         card.remove_css_class("error")
         if kind in ("warning", "error"):
             card.add_css_class(kind)
+
+    def _on_wide_layout(self, _breakpoint):
+        """Window widened past the breakpoint (typically maximized): move
+        Today's Events and the status-card row out of the single scrolling
+        column and side by side instead — events on the left (still
+        growing to fill the space), the three status cards stacked in a
+        narrower column on the right, so a maximized window uses its width
+        instead of just stretching a single column across it."""
+        self.root_box.remove(self.events_expander)
+        self.root_box.remove(self.status_row)
+        self.events_expander.set_hexpand(True)
+        self.status_row.set_orientation(Gtk.Orientation.VERTICAL)
+        self.status_row.set_homogeneous(False)
+        self.status_row.set_size_request(280, -1)
+        self.wide_row.append(self.events_expander)
+        self.wide_row.append(self.status_row)
+        self.root_box.insert_child_after(self.wide_row, self.weather_expander)
+
+    def _on_narrow_layout(self, _breakpoint):
+        """Window narrower than the breakpoint again — put Today's Events
+        and the status row back into their normal stacked order."""
+        self.root_box.remove(self.wide_row)
+        self.wide_row.remove(self.events_expander)
+        self.wide_row.remove(self.status_row)
+        self.events_expander.set_hexpand(False)
+        self.status_row.set_orientation(Gtk.Orientation.HORIZONTAL)
+        self.status_row.set_homogeneous(True)
+        self.status_row.set_size_request(-1, -1)
+        self.root_box.insert_child_after(self.events_expander, self.weather_expander)
+        self.root_box.insert_child_after(self.status_row, self.events_expander)
 
     @staticmethod
     def _set_status_icon(icon, kind):

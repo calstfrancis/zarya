@@ -39,6 +39,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.17.0" date="2026-09-24">
+      <description>
+        <p>
+          "Wide Deck". Maximizing the window (or otherwise widening it past
+          about 1200px) now switches to a wider layout — Today's Events on
+          the left, the System/Backups/Updates status cards stacked in a
+          column on the right — instead of the same single stretched-out
+          column from the normal window size.
+        </p>
+      </description>
+    </release>
     <release version="0.16.0" date="2026-09-24">
       <description>
         <p>
