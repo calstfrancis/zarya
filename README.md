@@ -20,6 +20,11 @@ weather, your backup status, and today's calendar events — all in one window.
 - Today's Google Calendar events, and a persistent to-do sidebar synced with
   Google Tasks — one OAuth2 + PKCE connection covers both; only a refresh
   token is stored, in the system keyring
+- Today's Events, System Health, and Backups auto-refresh in the background
+- Sunrise/sunset times, and a weather-card gradient that tracks the real
+  solar day (darkest at night, lightest at solar noon)
+- Disk Growth: which home directories have grown the most in the past week
+- Habits: a small daily habit tracker with streaks, no account needed
 - A real system tray icon (StatusNotifierItem); autostart runs quietly in
   the background instead of opening a window
 - First-run onboarding wizard for city and Google Account setup

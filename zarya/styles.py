@@ -1,3 +1,5 @@
+import math
+from datetime import datetime
 from pathlib import Path
 
 import gi
@@ -29,11 +31,55 @@ TERMINAL_RED = "#8B2F5C"
 TERMINAL_GREEN = "#495D47"
 TERMINAL_CYAN = "#425662"
 
+# Six dark-to-light stops the weather card's gradient slides across as the
+# day goes from night to noon and back — see `_gradient_stops` below. Index 0
+# is the darkest (deep night), index 5 the lightest (full daylight).
+_GRADIENT_RAMP = [NIGHT_INDIGO, DEEP_INDIGO, DEEP_BERRY, CORAL_RED, PEACH_TAN, IVORY_DAWN]
+_GRADIENT_POSITIONS = [0, 28, 58, 82, 100]
+
+
+def _hex_to_rgb(h: str) -> tuple[int, int, int]:
+    h = h.lstrip("#")
+    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def _lerp_hex(a: str, b: str, t: float) -> str:
+    ar, ag, ab = _hex_to_rgb(a)
+    br, bg, bb = _hex_to_rgb(b)
+    return "#{:02X}{:02X}{:02X}".format(
+        round(ar + (br - ar) * t), round(ag + (bg - ag) * t), round(ab + (bb - ab) * t)
+    )
+
+
+def daylight_factor(now: datetime | None = None, solar_noon_hour: float = 12.0) -> float:
+    """0.0 at the darkest point of the day, 1.0 at solar noon, smooth in
+    between. `solar_noon_hour` defaults to a plain clock-noon assumption;
+    pass the real midpoint of today's sunrise/sunset (from
+    `weather.solar_noon_hour`) once it's known, to phase-shift the curve to
+    the actual solar day instead of assuming exactly 12:00.
+    """
+    now = now or datetime.now()
+    hour = now.hour + now.minute / 60
+    return 0.5 - 0.5 * math.cos((hour - solar_noon_hour + 12) / 24 * 2 * math.pi)
+
+
+def _gradient_stops(factor: float) -> list[str]:
+    # Slides a 5-color window across the 6-color ramp: factor=0 uses ramp
+    # colors [0..4] (darkest), factor=1 uses [1..5] (lightest), so the whole
+    # gradient shifts one step lighter as daylight increases.
+    return [_lerp_hex(_GRADIENT_RAMP[i], _GRADIENT_RAMP[i + 1], factor) for i in range(5)]
+
+
+def weather_gradient_css(factor: float | None = None, solar_noon_hour: float = 12.0) -> str:
+    if factor is None:
+        factor = daylight_factor(solar_noon_hour=solar_noon_hour)
+    stops = _gradient_stops(factor)
+    stop_list = ", ".join(f"{color} {pos}%" for color, pos in zip(stops, _GRADIENT_POSITIONS))
+    return f".fondwave-card {{ background-image: linear-gradient(135deg, {stop_list}); }}"
+
+
 FONDWAVE_CSS = f"""
 .fondwave-card {{
-  background-image: linear-gradient(135deg,
-    {NIGHT_INDIGO} 0%, {DEEP_INDIGO} 28%, {DEEP_BERRY} 58%,
-    {CORAL_RED} 82%, {PEACH_TAN} 100%);
   border-radius: 12px;
   padding: 10px 12px;
 }}
@@ -145,3 +191,34 @@ def apply():
     Gtk.StyleContext.add_provider_for_display(
         display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
     )
+
+    global _gradient_provider
+    _gradient_provider = Gtk.CssProvider()
+    Gtk.StyleContext.add_provider_for_display(
+        display, _gradient_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+    )
+    refresh_weather_gradient()
+
+
+_gradient_provider: Gtk.CssProvider | None = None
+_solar_noon_hour = 12.0
+
+
+def set_solar_noon_hour(hour: float | None):
+    """Called once today's weather has loaded, with the real midpoint of
+    sunrise/sunset (`weather.solar_noon_hour`) — falls back to the plain
+    12:00 assumption if weather hasn't loaded yet or the fetch omitted it."""
+    global _solar_noon_hour
+    _solar_noon_hour = hour if hour is not None else 12.0
+    refresh_weather_gradient()
+
+
+def refresh_weather_gradient():
+    """Recompute the weather card's gradient for the current time of day.
+
+    Call this periodically (see `ZaryaWindow`'s gradient timer) — the
+    provider itself is updated in place rather than re-added, so this never
+    stacks duplicate providers on the display.
+    """
+    if _gradient_provider is not None:
+        _gradient_provider.load_from_string(weather_gradient_css(solar_noon_hour=_solar_noon_hour))

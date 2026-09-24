@@ -46,6 +46,28 @@ def celsius_to_fahrenheit(c):
     return c * 9 / 5 + 32
 
 
+def format_sun_time(iso_str):
+    if not iso_str:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(iso_str).strftime("%H:%M")
+    except ValueError:
+        return None
+
+
+def solar_noon_hour(sunrise_iso, sunset_iso):
+    """Midpoint of sunrise/sunset as a fractional hour (e.g. 13.1), or None
+    if either is missing — used to phase-shift the weather gradient's
+    daylight curve to the real solar day instead of assuming noon."""
+    try:
+        sunrise = datetime.datetime.fromisoformat(sunrise_iso)
+        sunset = datetime.datetime.fromisoformat(sunset_iso)
+    except (TypeError, ValueError):
+        return None
+    midpoint = sunrise + (sunset - sunrise) / 2
+    return midpoint.hour + midpoint.minute / 60
+
+
 def geocode(location):
     url = f"{GEOCODE_URL}?{urllib.parse.urlencode({'name': location, 'count': 1})}"
     with urllib.request.urlopen(url, timeout=10) as resp:
@@ -69,7 +91,7 @@ def fetch_today(lat, lon):
     params = {
         "latitude": lat,
         "longitude": lon,
-        "daily": "weather_code,temperature_2m_max,temperature_2m_min",
+        "daily": "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset",
         "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability",
         "current": "temperature_2m,apparent_temperature",
         "timezone": "auto",
@@ -99,10 +121,17 @@ def fetch_today(lat, lon):
     )
     lo, hi = max(0, now_idx - 12), min(len(hourly["time"]), now_idx + 13)
 
+    # "auto" timezone makes these local ISO timestamps (e.g.
+    # "2026-09-24T06:42"), same as the hourly series above.
+    sunrise = daily.get("sunrise", [None] * (TODAY_INDEX + 1))[TODAY_INDEX]
+    sunset = daily.get("sunset", [None] * (TODAY_INDEX + 1))[TODAY_INDEX]
+
     return {
         "code": daily["weather_code"][TODAY_INDEX],
         "temp_max_c": daily["temperature_2m_max"][TODAY_INDEX],
         "temp_min_c": daily["temperature_2m_min"][TODAY_INDEX],
+        "sunrise": sunrise,
+        "sunset": sunset,
         "hours": hourly["time"][lo:hi],
         "temp_c": hourly["temperature_2m"][lo:hi],
         "humidity": [v if v is not None else 0 for v in hourly["relative_humidity_2m"][lo:hi]],

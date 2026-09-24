@@ -23,6 +23,8 @@
       <li>System Health: disk space, drive SMART status, battery health, and CPU/GPU temperature</li>
       <li>Today's events from any combination of your Google calendars</li>
       <li>A persistent to-do sidebar synced with Google Tasks</li>
+      <li>Disk Growth: which home directories have grown the most this week</li>
+      <li>Habits: a small daily habit tracker with streaks, no account needed</li>
       <li>Desktop notification and run history</li>
       <li>System tray icon; "Start at login" (on by default) runs quietly in the background instead of opening a window</li>
     </ul>
@@ -39,6 +41,20 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.13.0" date="2026-09-24">
+      <description>
+        <p>
+          "Amber Bloom". Today's Events, System Health, and Backups now
+          auto-refresh in the background instead of only updating on
+          manual refresh or app launch. The weather card now shows
+          sunrise/sunset times and its gradient tracks the real solar day,
+          darkest at night and lightest at solar noon. Two new sections:
+          Disk Growth (which home directories grew the most this week) and
+          Habits (a small daily habit tracker with streaks, no account
+          needed).
+        </p>
+      </description>
+    </release>
     <release version="0.12.3" date="2026-09-09">
       <description>
         <p>

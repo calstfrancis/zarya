@@ -12,7 +12,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import __version__, backup_status, changelog, google_calendar, keyring, styles, system_health, system_updates, tray, weather, weather_alerts, weather_aqi
+from . import __version__, backup_status, changelog, disk_growth, google_calendar, habits, keyring, styles, system_health, system_updates, tray, weather, weather_alerts, weather_aqi
 from .onboarding import OnboardingWindow
 from .preferences import PreferencesWindow
 from .todo_sidebar import TodoSidebar
@@ -266,9 +266,15 @@ class ZaryaWindow(Adw.ApplicationWindow):
         weather_top_row.append(self.weather_current_label)
         weather_content.append(weather_top_row)
 
+        weather_second_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.weather_sun_label = Gtk.Label(xalign=0, hexpand=True)
+        self.weather_sun_label.add_css_class("caption")
+        self.weather_sun_label.add_css_class("dim-label")
+        weather_second_row.append(self.weather_sun_label)
         self.weather_aqi_label = Gtk.Label(xalign=1, halign=Gtk.Align.END)
         self.weather_aqi_label.add_css_class("caption")
-        weather_content.append(self.weather_aqi_label)
+        weather_second_row.append(self.weather_aqi_label)
+        weather_content.append(weather_second_row)
 
         self.alerts_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         weather_content.append(self.alerts_box)
@@ -305,6 +311,24 @@ class ZaryaWindow(Adw.ApplicationWindow):
             extra_button=open_pereprava_button,
         )
         root_box.append(backup_expander)
+
+        # --- Disk growth ---
+        self.disk_growth_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        disk_growth_expander, self.disk_growth_status_icon = self._make_section(
+            "disk_growth", "Disk Growth", self.disk_growth_box, self.fetch_disk_growth,
+        )
+        root_box.append(disk_growth_expander)
+
+        # --- Habits ---
+        self.habits_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        add_habit_button = Gtk.Button(icon_name="list-add-symbolic", has_frame=False)
+        add_habit_button.set_tooltip_text("Add a habit")
+        add_habit_button.connect("clicked", self.on_add_habit_clicked)
+        habits_expander, _habits_status_icon = self._make_section(
+            "habits", "Habits", self.habits_box, show_icon=False,
+            extra_button=add_habit_button,
+        )
+        root_box.append(habits_expander)
 
         # --- Already-updated-today status ---
         self.status_label = Gtk.Label(xalign=0)
@@ -413,12 +437,19 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if self.config.get("location"):
             self.fetch_weather()
         GLib.timeout_add_seconds(3600, self._on_weather_refresh_timer)
+        GLib.timeout_add_seconds(600, self._on_gradient_refresh_timer)
         self.fetch_backups()
+        GLib.timeout_add_seconds(600, self._on_backups_refresh_timer)
         self.fetch_system_health()
+        GLib.timeout_add_seconds(300, self._on_health_refresh_timer)
         if keyring.lookup_google_refresh_token():
             self.fetch_events()
         else:
             self._set_box_message(self.events_box, "Connect your Google Account in Preferences to see today's events.")
+        GLib.timeout_add_seconds(900, self._on_events_refresh_timer)
+        self.fetch_disk_growth()
+        GLib.timeout_add_seconds(21600, self._on_disk_growth_refresh_timer)
+        self.render_habits()
 
         # The autostart entry only runs at an actual login — on a machine
         # that stays logged in across suspend/resume for days at a stretch
@@ -602,12 +633,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.fetch_weather()
         return True
 
+    def _on_gradient_refresh_timer(self):
+        styles.refresh_weather_gradient()
+        return True
+
     def fetch_weather(self):
         location = self.config.get("location", "").strip()
         if not location:
             self.weather_summary_label.set_label("Set a location in Preferences to see today's weather.")
             self.weather_current_label.set_label("")
             self.weather_aqi_label.set_label("")
+            self.weather_sun_label.set_label("")
             self.weather_table.set_visible(False)
             self._clear_box(self.alerts_box)
             self._set_status_icon(self.weather_status_icon, "neutral")
@@ -643,6 +679,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.weather_summary_label.set_label(f"Couldn't get weather: {message}")
         self.weather_current_label.set_label("")
         self.weather_aqi_label.set_label("")
+        self.weather_sun_label.set_label("")
         self.weather_table.set_visible(False)
         self._clear_box(self.alerts_box)
         self._set_status_icon(self.weather_status_icon, "error")
@@ -701,6 +738,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.weather_table.center_on_now()
         self.render_alerts(d.get("alerts", []))
 
+        sunrise = weather.format_sun_time(d.get("sunrise"))
+        sunset = weather.format_sun_time(d.get("sunset"))
+        if sunrise and sunset:
+            self.weather_sun_label.set_label(f"☀ {sunrise} – {sunset}")
+        else:
+            self.weather_sun_label.set_label("")
+        styles.set_solar_noon_hour(weather.solar_noon_hour(d.get("sunrise"), d.get("sunset")))
+
     def render_alerts(self, alerts):
         self._clear_box(self.alerts_box)
         for alert in alerts:
@@ -720,6 +765,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.alerts_box.append(row)
 
     # --- backups ---
+
+    def _on_backups_refresh_timer(self):
+        self.fetch_backups()
+        return True
 
     def on_open_pereprava_clicked(self, _button):
         # "pereprava" is only on PATH for the install-script distribution
@@ -784,7 +833,129 @@ class ZaryaWindow(Adw.ApplicationWindow):
         except (OverflowError, OSError, ValueError):
             return None
 
+    # --- disk growth ---
+
+    def _on_disk_growth_refresh_timer(self):
+        self.fetch_disk_growth()
+        return True
+
+    def fetch_disk_growth(self):
+        self._set_box_message(self.disk_growth_box, "Measuring home directory sizes…")
+        self._set_status_icon(self.disk_growth_status_icon, "neutral")
+        disk_growth.fetch_sizes(self.on_disk_growth_ready)
+
+    def on_disk_growth_ready(self, sizes, error):
+        if error is not None:
+            self._set_box_message(self.disk_growth_box, f"Couldn't measure disk growth: {error}")
+            self._set_status_icon(self.disk_growth_status_icon, "error")
+            return
+        if not sizes:
+            self._set_box_message(self.disk_growth_box, "No home directories found to measure.")
+            self._set_status_icon(self.disk_growth_status_icon, "neutral")
+            return
+        history = disk_growth.record_snapshot(sizes)
+        rows, has_baseline = disk_growth.growth_since(history, sizes)
+        self._set_status_icon(self.disk_growth_status_icon, "ok")
+        self._clear_box(self.disk_growth_box)
+        if not has_baseline:
+            note = Gtk.Label(
+                label="Collecting a week of history before showing growth — check back soon.",
+                xalign=0, wrap=True,
+            )
+            note.add_css_class("dim-label")
+            self.disk_growth_box.append(note)
+            return
+        growing = [r for r in rows if r[2] > 0][:5]
+        if not growing:
+            self._set_box_message(self.disk_growth_box, "Nothing has grown noticeably in the last week.")
+            return
+        for name, current, delta in growing:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            icon = Gtk.Image(icon_name="folder-symbolic")
+            icon.add_css_class("dim-label")
+            row.append(icon)
+            name_label = Gtk.Label(label=name, xalign=0, hexpand=True)
+            row.append(name_label)
+            size_label = Gtk.Label(label=self._format_bytes(current))
+            size_label.add_css_class("dim-label")
+            row.append(size_label)
+            delta_label = Gtk.Label(label=f"+{self._format_bytes(delta)} this week")
+            delta_label.add_css_class("warning")
+            row.append(delta_label)
+            self.disk_growth_box.append(row)
+
+    # --- habits ---
+
+    def on_add_habit_clicked(self, _button):
+        entry = Adw.EntryRow(title="Habit name")
+        dialog = Adw.AlertDialog(heading="Add a Habit", body="What do you want to track daily?")
+        dialog.set_extra_child(entry)
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("add", "Add")
+        dialog.set_response_appearance("add", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("add")
+        dialog.set_close_response("cancel")
+
+        def on_response(_dialog, response):
+            if response == "add":
+                name = entry.get_text().strip()
+                if name:
+                    data = habits.load()
+                    habits.add_habit(data, name)
+                    self.render_habits()
+
+        dialog.connect("response", on_response)
+        dialog.present(self)
+
+    def on_habit_toggle_clicked(self, button, name):
+        data = habits.load()
+        habits.toggle_today(data, name)
+        self.render_habits()
+
+    def on_habit_remove_clicked(self, _button, name):
+        data = habits.load()
+        habits.remove_habit(data, name)
+        self.render_habits()
+
+    def render_habits(self):
+        self._clear_box(self.habits_box)
+        data = habits.load()
+        if not data["habits"]:
+            note = Gtk.Label(label="No habits yet — click + to add one.", xalign=0, wrap=True)
+            note.add_css_class("dim-label")
+            self.habits_box.append(note)
+            return
+        for name in data["habits"]:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            row.add_css_class("fond-statusbar")
+
+            toggle = Gtk.Button(label=name, has_frame=False, hexpand=True)
+            toggle.get_child().set_xalign(0)
+            done = habits.is_done_today(data, name)
+            if done:
+                toggle.add_css_class("fond-toggle-active")
+            toggle.set_tooltip_text("Mark done for today" if not done else "Marked done today — click to undo")
+            toggle.connect("clicked", self.on_habit_toggle_clicked, name)
+            row.append(toggle)
+
+            streak = habits.current_streak(data, name)
+            if streak > 0:
+                streak_label = Gtk.Label(label=f"🔥 {streak}d")
+                streak_label.add_css_class("dim-label")
+                row.append(streak_label)
+
+            remove_button = Gtk.Button(icon_name="edit-delete-symbolic", has_frame=False)
+            remove_button.set_tooltip_text(f"Remove {name}")
+            remove_button.connect("clicked", self.on_habit_remove_clicked, name)
+            row.append(remove_button)
+
+            self.habits_box.append(row)
+
     # --- system health ---
+
+    def _on_health_refresh_timer(self):
+        self.fetch_system_health()
+        return True
 
     def fetch_system_health(self):
         self._set_box_message(self.health_box, "Checking system health…")
@@ -987,6 +1158,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         return f"{value:.1f} TB"
 
     # --- calendar ---
+
+    def _on_events_refresh_timer(self):
+        self.fetch_events()
+        return True
 
     def fetch_events(self):
         refresh_token = keyring.lookup_google_refresh_token()

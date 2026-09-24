@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.13.0] "Amber Bloom" — auto-refresh, sunrise/sunset, disk growth, habits
+
+- Added: Today's Events, System Health, and Backups now auto-refresh in the
+  background (every 15, 5, and 10 minutes respectively) instead of only
+  updating on manual refresh or app launch.
+- Added: the weather card now shows today's sunrise and sunset times, and
+  its gradient shifts from its darkest colors at the day's darkest point to
+  its lightest at solar noon and back — phased to the real sunrise/sunset
+  midpoint once weather has loaded, a plain clock-noon approximation before
+  that.
+- Added: a new Disk Growth section reporting which top-level home
+  directories have grown the most over the past week, once a week of
+  history has been collected.
+- Added: a new Habits section — a small daily habit tracker (add/remove
+  habits, mark done for today, current streak) with no external account or
+  API needed.
+
 ## [0.12.3] "True Ledger" — surface fully-failed automatic updates
 
 - Added: a fully-failed automatic daily update (the timer's own retries —

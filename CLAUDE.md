@@ -45,6 +45,8 @@ Single source of truth: `version` in `pyproject.toml`, mirrored in `zarya/__init
 | `zarya/weather_aqi.py` | Standard US EPA AQI (0-500) from Open-Meteo's air-quality API — deliberately *not* Canada's AQHI (1-10), which an earlier version used and which confused a real AQI reading (14) for AQHI's very different scale (1) |
 | `zarya/backup_status.py` | Reads Pereprava's job JSON + `systemctl --user` status via one embedded Python script run through `flatpak-spawn --host python3 -c ...` |
 | `zarya/system_health.py` | Disk space + CPU/GPU temperature (both `flatpak-spawn --host`, hwmon for temps, allowlisted to real CPU/GPU chip names) + drive SMART health (UDisks2) + battery health (UPower's `Capacity` property) — the latter two over the **system** D-Bus (`--system-talk-name`, not the usual session-bus `--talk-name`), read-only, no root/pkexec needed |
+| `zarya/disk_growth.py` | Sizes of top-level (non-hidden) directories directly under the host's real home, via `flatpak-spawn --host sh -c 'du -sb ...'` — snapshotted at most once/day into `~/.cache/zarya/disk_growth_history.json` (pruned past 40 days), compared against the closest snapshot ≥7 days old to report the top 5 growing directories |
+| `zarya/habits.py` | A small local daily habit tracker — add/remove habits, mark done for today, current streak — no external API. Durable data (not disposable cache), so it lives at `~/.local/share/zarya/habits.json` via `GLib.get_user_data_dir()`, unlike the cache-dir state above |
 | `zarya/google_calendar.py` | OAuth2 + PKCE loopback flow (shared by Calendar and Tasks), `get_access_token()` (public, reused by `google_tasks.py`), `list_calendars()` + multi-calendar `fetch_today_events()` — stdlib only, no Google client libraries |
 | `zarya/google_tasks.py` | Google Tasks API v1 CRUD (`@default` list) — list/add/set-done/delete, reuses `google_calendar.get_access_token()` |
 | `zarya/todo_sidebar.py` | `TodoSidebar` — persistent right-side panel, backed entirely by Google Tasks (no local storage); shows a connect prompt when not connected |
@@ -310,3 +312,63 @@ The hourly weather display was originally a Cairo-drawn line/bar chart
 current `weather_table.py` plain numbers grid on explicit feedback that a
 line isn't actually usable for reading exact values at a glance — worth
 remembering before reintroducing a chart here.
+
+## Dashboard auto-refresh (0.13.0)
+
+Today's Events, System Health, and Backups used to only update on manual
+refresh or app launch — added independent `GLib.timeout_add_seconds` polls
+in `ZaryaWindow.__init__`, same pattern as weather's existing hourly timer:
+events every 900s, health every 300s, backups every 600s (cheaper local
+reads get shorter intervals; the Google Calendar API call gets the longest).
+Disk Growth also has one at 21600s (6h), mostly to catch a snapshot on a
+machine left open across midnight — see below for why more frequent doesn't
+help it. Each timer callback just calls the section's existing `fetch_*()`
+and returns `True` to keep repeating.
+
+## Weather gradient tracks the solar day (0.13.0)
+
+`.fondwave-card`'s gradient used to be a fixed set of 5 colors. It's now
+computed from a 6-color dark→light ramp (`styles._GRADIENT_RAMP`): a
+"daylight factor" in [0, 1] slides a 5-color window across the ramp, so the
+whole gradient shifts one step lighter as the factor rises. The factor
+itself is `0.5 - 0.5*cos(...)`, phased so it peaks at solar noon rather than
+a fixed 12:00 — `weather.solar_noon_hour()` computes the real midpoint from
+today's sunrise/sunset once weather has loaded (`styles.set_solar_noon_hour`,
+called from `render_weather`); before that, or if sunrise/sunset didn't come
+back, it defaults to a plain clock-noon assumption. Recomputed every 600s by
+`_on_gradient_refresh_timer` via `styles.refresh_weather_gradient()`, which
+updates a dedicated `Gtk.CssProvider` in place (`styles._gradient_provider`)
+rather than re-adding one each time, so it never stacks providers on the
+display. Sunrise/sunset themselves come from Open-Meteo's `daily` block
+(`sunrise,sunset` added to the existing params) — no new API or network call.
+
+## Disk Growth section (0.13.0)
+
+Reports which top-level home directories grew the most in the last week.
+Sizes come from `du -sb "$HOME"/*/` via `flatpak-spawn --host sh -c ...` —
+a real host shell command, not a Python `os.walk`, since `du` walking a
+large tree is much cheaper done by the host's own C binary than round-
+tripped through Python. Snapshots are taken at most once per calendar day
+(`disk_growth.record_snapshot` overwrites today's entry if one already
+exists) into `~/.cache/zarya/disk_growth_history.json`, so the section
+naturally builds a week of history over a week of normal daily use without
+needing a dedicated snapshot timer — the periodic refresh above is just a
+display refresh plus a safety net for a machine left open past midnight.
+Growth is computed against the closest snapshot that's ≥7 days old (not
+"exactly 7 days old", since the app won't always be open at the same time
+every day). Shows "collecting a week of history" until one exists.
+
+## Habits section (0.13.0)
+
+A minimal local daily habit tracker — no external account, no API. Habits
+are added/removed via a `+` button in the section header (`Adw.AlertDialog`
++ `Adw.EntryRow`, the modern libadwaita dialog pattern rather than a
+one-off `Adw.Window`). Each row is a flat, name-as-label toggle button
+following the house **Status bar with name-as-label toggles** convention
+(root CLAUDE.md) — reuses the Fond suite's existing `.fond-statusbar` /
+`.fond-toggle-active` CSS classes from `style/fond.css` (weight-only active
+state, not a filled chip) rather than inventing new CSS for this one
+section. Streak (`habits.current_streak`) counts consecutively backward
+from today if today's marked done, or from yesterday otherwise — so the
+streak doesn't drop to zero the instant a new day starts, only once a full
+day is actually missed.
