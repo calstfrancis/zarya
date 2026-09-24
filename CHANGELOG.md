@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0] "Lunar Reset" — restart-after-update prompt, moon phase, weekly habit rollup
+
+- Added: Zarya now offers to restart itself right after an update actually
+  installs a new version of Zarya — a dialog with "Restart Now" / "Later",
+  since an already-running instance keeps executing its old code in memory
+  until it's relaunched.
+- Added: today's moon phase and illumination, shown next to sunrise/sunset
+  in the weather card (a plain astronomical calculation, no extra network
+  call).
+- Added: each habit row now shows a rolling "X/7 this week" count alongside
+  its streak.
+
 ## [0.13.0] "Amber Bloom" — auto-refresh, sunrise/sunset, disk growth, habits
 
 - Added: Today's Events, System Health, and Backups now auto-refresh in the

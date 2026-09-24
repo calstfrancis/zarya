@@ -62,6 +62,17 @@ def toggle_today(data: dict, name: str) -> None:
     save(data)
 
 
+def week_count(data: dict, name: str) -> int:
+    """How many of the last 7 days (today back to 6 days ago) are marked
+    done — a rolling window, not calendar-week-aligned, so it reads the
+    same regardless of what day of the week it is."""
+    dates = set(data["log"].get(name, []))
+    today = datetime.date.today()
+    return sum(
+        1 for i in range(7) if (today - datetime.timedelta(days=i)).isoformat() in dates
+    )
+
+
 def current_streak(data: dict, name: str) -> int:
     """Consecutive days up to and including today, or up to yesterday if
     today isn't marked done yet — so the streak doesn't drop to zero the

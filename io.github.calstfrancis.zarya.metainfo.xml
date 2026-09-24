@@ -18,7 +18,7 @@
     <ul>
       <li>Runs zypper refresh + dist-upgrade and flatpak update with a single graphical password prompt</li>
       <li>Skips re-running if it already updated today; persistent success/failure status</li>
-      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", Environment Canada weather alerts, and the AQI</li>
+      <li>Daily weather report (Open-Meteo) as an hourly temperature/humidity/rain table, with current temperature, "feels like", sunrise/sunset, moon phase, Environment Canada weather alerts, and the AQI</li>
       <li>Backup status from Pereprava's rclone/rsync jobs, with a link to open it</li>
       <li>System Health: disk space, drive SMART status, battery health, and CPU/GPU temperature</li>
       <li>Today's events from any combination of your Google calendars</li>
@@ -41,6 +41,18 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.14.0" date="2026-09-24">
+      <description>
+        <p>
+          "Lunar Reset". Zarya now offers to restart itself right after an
+          update actually installs a new version of Zarya, since an
+          already-running instance otherwise keeps executing its old code
+          until relaunched. The weather card now shows today's moon phase
+          and illumination alongside sunrise/sunset. Each habit row now
+          shows a rolling "X/7 this week" count next to its streak.
+        </p>
+      </description>
+    </release>
     <release version="0.13.0" date="2026-09-24">
       <description>
         <p>

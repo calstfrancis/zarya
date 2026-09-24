@@ -1,10 +1,41 @@
 import datetime
 import json
+import math
 import urllib.parse
 import urllib.request
 
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+
+# A known new moon (2000-01-06 18:14 UTC) plus the synodic month's average
+# length — a plain astronomical formula, no API/network call needed. Good
+# enough for a dashboard reading (accurate to well under a day), not for
+# anything that needs precision.
+_KNOWN_NEW_MOON = datetime.datetime(2000, 1, 6, 18, 14, tzinfo=datetime.timezone.utc)
+_SYNODIC_MONTH_DAYS = 29.530588861
+
+_MOON_PHASES = [
+    (0.03, "New Moon", "🌑"),
+    (0.22, "Waxing Crescent", "🌒"),
+    (0.28, "First Quarter", "🌓"),
+    (0.47, "Waxing Gibbous", "🌔"),
+    (0.53, "Full Moon", "🌕"),
+    (0.72, "Waning Gibbous", "🌖"),
+    (0.78, "Last Quarter", "🌗"),
+    (0.97, "Waning Crescent", "🌘"),
+]
+
+
+def moon_phase(now: datetime.datetime | None = None) -> dict:
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    days = (now - _KNOWN_NEW_MOON).total_seconds() / 86400
+    fraction = (days % _SYNODIC_MONTH_DAYS) / _SYNODIC_MONTH_DAYS
+    illumination = (1 - math.cos(2 * math.pi * fraction)) / 2 * 100
+    name, emoji = next(
+        ((n, e) for threshold, n, e in _MOON_PHASES if fraction < threshold),
+        ("New Moon", "🌑"),
+    )
+    return {"fraction": fraction, "illumination": illumination, "name": name, "emoji": emoji}
 
 WEATHER_CODES = {
     0: "Clear sky",

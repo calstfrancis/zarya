@@ -10,6 +10,7 @@ weather, your backup status, and today's calendar events — all in one window.
   "Run Now" always prompts via `pkexec`, same as ever — that's unchanged on
   purpose.
 - Skips re-running if it already updated today; persistent success/failure status
+- Offers to restart itself right after an update installs a new version of Zarya
 - Optional "Start at login" toggle
 - Daily weather report (Open-Meteo, no API key) as an hourly temperature/
   humidity/rain table, styled with the Fondwave palette
@@ -21,10 +22,11 @@ weather, your backup status, and today's calendar events — all in one window.
   Google Tasks — one OAuth2 + PKCE connection covers both; only a refresh
   token is stored, in the system keyring
 - Today's Events, System Health, and Backups auto-refresh in the background
-- Sunrise/sunset times, and a weather-card gradient that tracks the real
-  solar day (darkest at night, lightest at solar noon)
+- Sunrise/sunset times and today's moon phase, and a weather-card gradient
+  that tracks the real solar day (darkest at night, lightest at solar noon)
 - Disk Growth: which home directories have grown the most in the past week
-- Habits: a small daily habit tracker with streaks, no account needed
+- Habits: a small daily habit tracker with streaks and a weekly rollup, no
+  account needed
 - A real system tray icon (StatusNotifierItem); autostart runs quietly in
   the background instead of opening a window
 - First-run onboarding wizard for city and Google Account setup

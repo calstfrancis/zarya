@@ -371,4 +371,30 @@ state, not a filled chip) rather than inventing new CSS for this one
 section. Streak (`habits.current_streak`) counts consecutively backward
 from today if today's marked done, or from yesterday otherwise — so the
 streak doesn't drop to zero the instant a new day starts, only once a full
-day is actually missed.
+day is actually missed. Each row also shows `habits.week_count` — a rolling
+7-day window (today back to 6 days ago), not calendar-week-aligned, added
+0.14.0.
+
+## Moon phase (0.14.0)
+
+`weather.moon_phase()` is a plain astronomical calculation (days since a
+known new moon, mod the synodic month's average length) — no extra network
+call, no new API. Shown next to sunrise/sunset in the weather card. Accurate
+to well under a day, which is all a dashboard reading needs; don't reach
+for a real ephemeris library here.
+
+## Restart-after-update prompt (0.14.0)
+
+`ZaryaWindow.finish()` (the update run's completion handler) calls
+`maybe_offer_restart(full_text)` on success, which does a plain substring
+check for `APP_ID` in the full update log — the same best-effort spirit as
+`summarize_updates()` right above it, not a real before/after version diff.
+Matters because a `flatpak update` only replaces files on disk; the
+already-running Zarya process keeps executing its old code in memory until
+actually relaunched, whether the update ran interactively (Run Now) or
+silently in the background (the daily autorun poll) — so this can pop the
+window back up (`self.present()`) even if it was hidden in the tray.
+"Restart Now" launches a fresh `flatpak run io.github.calstfrancis.zarya`
+via `flatpak-spawn --host` (same pattern as the "Open Pereprava" button)
+before quitting this instance — spawn-then-quit, not quit-then-spawn, so
+there's no gap with no Zarya running if the spawn itself fails.

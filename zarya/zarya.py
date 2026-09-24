@@ -740,10 +740,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         sunrise = weather.format_sun_time(d.get("sunrise"))
         sunset = weather.format_sun_time(d.get("sunset"))
+        sun_pieces = []
         if sunrise and sunset:
-            self.weather_sun_label.set_label(f"☀ {sunrise} – {sunset}")
-        else:
-            self.weather_sun_label.set_label("")
+            sun_pieces.append(f"☀ {sunrise} – {sunset}")
+        moon = weather.moon_phase()
+        sun_pieces.append(f"{moon['emoji']} {moon['name']} ({moon['illumination']:.0f}%)")
+        self.weather_sun_label.set_label(" · ".join(sun_pieces))
         styles.set_solar_noon_hour(weather.solar_noon_hour(d.get("sunrise"), d.get("sunset")))
 
     def render_alerts(self, alerts):
@@ -937,6 +939,11 @@ class ZaryaWindow(Adw.ApplicationWindow):
             toggle.set_tooltip_text("Mark done for today" if not done else "Marked done today — click to undo")
             toggle.connect("clicked", self.on_habit_toggle_clicked, name)
             row.append(toggle)
+
+            week = habits.week_count(data, name)
+            week_label = Gtk.Label(label=f"{week}/7 this week")
+            week_label.add_css_class("dim-label")
+            row.append(week_label)
 
             streak = habits.current_streak(data, name)
             if streak > 0:
@@ -1492,11 +1499,53 @@ class ZaryaWindow(Adw.ApplicationWindow):
             if summary:
                 self.logline(f"Summary: {summary}")
             self.logline("All done.")
+            self.maybe_offer_restart(full_text)
         else:
             self.logline("Not marking today as done — you can retry with Run Anyway.")
 
         self.send_result_notification(success, summary)
         self.refresh_status()
+
+    def maybe_offer_restart(self, full_text):
+        # Best-effort, same spirit as summarize_updates(): a substring match
+        # on Zarya's own app ID in the update log's "Updating: ..." flatpak
+        # output — good enough to know Zarya itself was among the packages
+        # updated, without needing to diff installed versions before/after.
+        # Matters because a flatpak update only replaces files on disk — the
+        # already-running process (this one) keeps executing its old code
+        # in memory until it's actually restarted.
+        if APP_ID not in full_text:
+            return
+        if not self.get_visible():
+            self.present()
+        dialog = Adw.AlertDialog(
+            heading="Zarya Updated",
+            body="A new version of Zarya was just installed. Restart now to use it?",
+        )
+        dialog.add_response("later", "Later")
+        dialog.add_response("restart", "Restart Now")
+        dialog.set_response_appearance("restart", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("restart")
+        dialog.set_close_response("later")
+
+        def on_response(_dialog, response):
+            if response == "restart":
+                self.restart_now()
+
+        dialog.connect("response", on_response)
+        dialog.present(self)
+
+    def restart_now(self):
+        try:
+            Gio.Subprocess.new(
+                ["flatpak-spawn", "--host", "flatpak", "run", APP_ID],
+                Gio.SubprocessFlags.NONE,
+            )
+        except GLib.Error as e:
+            self.toast_overlay.add_toast(Adw.Toast(title=f"Couldn't restart Zarya: {e}"))
+            return
+        self.quitting = True
+        self.get_application().quit()
 
     def send_result_notification(self, success, summary):
         app = self.get_application()
