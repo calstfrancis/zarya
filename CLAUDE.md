@@ -440,6 +440,35 @@ not caught by the fluxbox testing above (0.17.1):**
   container's children can silently change the container's own effective
   expand behavior unless the container's `hexpand` is pinned explicitly.
 
+**Wide layout shows each card's full detail inline, not behind a click
+(0.17.2)** — Cal's next screenshot showed the 0.17.0/0.17.1 wide layout was
+still just the same one-line compact cards (System/Backups/Updates) stacked
+in a column, matching the mockup's *position* but not what the mockup
+actually showed on each card face: full inline detail (storage bars, the
+backup job list, the update log/history/buttons), no click needed. Fixed by
+giving each status card a **second, wide-only representation**
+(`_make_wide_card`: a plain `.status-card` box with just an icon+title
+header, no popover) and moving the *same* detail-body widget
+(`self.system_detail_body`/`backups_detail_body`/`updates_detail_body` —
+what used to be built directly as each popover's child) between the
+popover and the wide card's body at breakpoint time:
+`_on_wide_layout`/`_on_narrow_layout` now loop over
+`_STATUS_CARD_NAMES = ("system", "backups", "updates")` and, per name,
+`compact_card.get_popover().set_child(None)` +
+`wide_card.append(detail_body)` (or the exact reverse) — never two copies
+of the same content, same pattern as moving `events_expander`/the status
+column between `root_box` and `wide_row`. `self.wide_status_column`
+(replacing the old approach of just reusing `status_row` reoriented
+vertically) is a plain `Gtk.Box` holding the three wide cards, sized/
+hexpand-pinned the same way `status_row` was. Card color state
+(`.warning`/`.error`) now needs to reach *both* representations, so
+`_set_card_state(card, kind)` callers were replaced with
+`_set_status_severity(name, kind)`, which applies it to
+`{name}_card` and `{name}_wide_card` together — remember to call the
+severity setter, not `_set_card_state` directly, from any new code path
+that changes a card's state, or the wide-mode card will silently fall out
+of sync with the compact one.
+
 ## Weather chart history
 
 The hourly weather display was originally a Cairo-drawn line/bar chart

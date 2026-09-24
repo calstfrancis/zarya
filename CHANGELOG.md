@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.17.2] "Open Book" — wide layout shows full card detail, not a click-through
+
+- Fixed: in the maximized wide layout, System/Backups/Updates still only
+  showed the same one-line summary as the normal window — the mockup this
+  layout was built from actually shows each card's full detail (storage
+  bars, the backup job list, the update log/history/Run Now) directly on
+  the card, with no click needed. The wide layout now shows that full
+  detail inline; the normal (narrow) window is unchanged — cards there
+  still show a one-line summary you click for the detail popover.
+
 ## [0.17.1] "True Face" — status cards actually look like cards
 
 - Fixed: the System/Backups/Updates status cards had no visible

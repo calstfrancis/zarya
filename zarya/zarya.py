@@ -334,49 +334,50 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # System (+ Disk Growth folded in — both are "state of the machine")
         self.health_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.disk_growth_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        system_popover_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
-        system_popover_content.set_size_request(320, -1)
-        system_popover_content.append(self._popover_heading("Storage & Drives", self.fetch_system_health))
-        system_popover_content.append(self.health_box)
-        system_popover_content.append(Gtk.Separator())
-        system_popover_content.append(self._popover_heading("Growing This Week", self.fetch_disk_growth))
-        system_popover_content.append(self.disk_growth_box)
+        self.system_detail_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
+        self.system_detail_body.set_size_request(320, -1)
+        self.system_detail_body.append(self._popover_heading("Storage & Drives", self.fetch_system_health))
+        self.system_detail_body.append(self.health_box)
+        self.system_detail_body.append(Gtk.Separator())
+        self.system_detail_body.append(self._popover_heading("Growing This Week", self.fetch_disk_growth))
+        self.system_detail_body.append(self.disk_growth_box)
         self.system_card, self.system_card_value, self.system_card_detail = self._make_status_card(
-            "computer-symbolic", "System", system_popover_content,
+            "computer-symbolic", "System", self.system_detail_body,
         )
         self.system_card_value.set_label("Checking…")
         status_row.append(self.system_card)
 
         # Backups
         self.backup_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        backups_popover_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
-        backups_popover_content.set_size_request(320, -1)
-        backups_popover_content.append(self._popover_heading("Backups", self.fetch_backups))
-        backups_popover_content.append(self.backup_box)
+        self.backups_detail_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
+        self.backups_detail_body.set_size_request(320, -1)
+        self.backups_detail_body.append(self._popover_heading("Backups", self.fetch_backups))
+        self.backups_detail_body.append(self.backup_box)
         open_pereprava_button = Gtk.Button(label="Open Pereprava", halign=Gtk.Align.START)
         open_pereprava_button.connect("clicked", self.on_open_pereprava_clicked)
-        backups_popover_content.append(open_pereprava_button)
+        self.backups_detail_body.append(open_pereprava_button)
         self.backups_card, self.backups_card_value, self.backups_card_detail = self._make_status_card(
-            "folder-remote-symbolic", "Backups", backups_popover_content,
+            "folder-remote-symbolic", "Backups", self.backups_detail_body,
         )
         self.backups_card_value.set_label("Checking…")
         status_row.append(self.backups_card)
 
         # Updates — the old bottom button row and its Update Log now live
-        # entirely inside this card's popover.
-        updates_popover_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
-        updates_popover_content.set_size_request(360, -1)
+        # entirely inside this card's popover (or inline, in the wide
+        # layout — see _on_wide_layout).
+        self.updates_detail_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=10, margin_start=12, margin_end=12)
+        self.updates_detail_body.set_size_request(360, -1)
 
         self.status_label = Gtk.Label(xalign=0)
         self.status_label.add_css_class("heading")
-        updates_popover_content.append(self.status_label)
+        self.updates_detail_body.append(self.status_label)
 
         result_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.result_icon = Gtk.Image()
         self.result_label = Gtk.Label(xalign=0, wrap=True)
         result_box.append(self.result_icon)
         result_box.append(self.result_label)
-        updates_popover_content.append(result_box)
+        self.updates_detail_body.append(result_box)
 
         self.history_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         history_caption = Gtk.Label(label="Last 14 days:")
@@ -385,7 +386,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.history_row.append(history_caption)
         self.history_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         self.history_row.append(self.history_box)
-        updates_popover_content.append(self.history_row)
+        self.updates_detail_body.append(self.history_row)
 
         updates_button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self.run_button = Gtk.Button(label="Run Now")
@@ -396,7 +397,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.cancel_button.set_sensitive(False)
         self.cancel_button.connect("clicked", self.on_cancel_clicked)
         updates_button_row.append(self.cancel_button)
-        updates_popover_content.append(updates_button_row)
+        self.updates_detail_body.append(updates_button_row)
 
         log_expander = Gtk.Expander(label="Update Log")
         log_expander.set_expanded(self.config.get("log_expanded", False))
@@ -420,19 +421,29 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.log_success_tag = self.buffer.create_tag("log-success", foreground=styles.TERMINAL_GREEN)
         scrolled.set_child(self.text_view)
         log_expander.set_child(scrolled)
-        updates_popover_content.append(log_expander)
+        self.updates_detail_body.append(log_expander)
 
         self.updates_card, self.updates_card_value, self.updates_card_detail = self._make_status_card(
-            "software-update-available-symbolic", "Updates", updates_popover_content,
+            "software-update-available-symbolic", "Updates", self.updates_detail_body,
         )
         status_row.append(self.updates_card)
 
-        # --- Wide layout (maximized-ish widths): Today's Events beside a
-        # single column of status cards, instead of both stacked full-width
-        # under Weather. `wide_row` isn't parented anywhere yet — the
-        # breakpoint below moves `events_expander`/`status_row` into it (and
-        # back out again below the min-width) rather than building two
-        # separate copies of that content.
+        # --- Wide layout (maximized-ish widths): Today's Events beside the
+        # status cards shown in FULL (their detail body inline, not behind
+        # a click-through popover) — see _on_wide_layout for how the same
+        # detail-body widgets move between a popover and here.
+        self.system_wide_card = self._make_wide_card("computer-symbolic", "System")
+        self.backups_wide_card = self._make_wide_card("folder-remote-symbolic", "Backups")
+        self.updates_wide_card = self._make_wide_card("software-update-available-symbolic", "Updates")
+        self.wide_status_column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        self.wide_status_column.append(self.system_wide_card)
+        self.wide_status_column.append(self.backups_wide_card)
+        self.wide_status_column.append(self.updates_wide_card)
+
+        # `wide_row` isn't parented anywhere yet — the breakpoint below
+        # moves `events_expander`/`wide_status_column` into it (and back
+        # out again below the min-width) rather than building two separate
+        # copies of that content.
         self.wide_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
         wide_breakpoint = Adw.Breakpoint.new(
             Adw.BreakpointCondition.new_length(Adw.BreakpointConditionLengthType.MIN_WIDTH, 1200, Adw.LengthUnit.PX)
@@ -622,6 +633,23 @@ class ZaryaWindow(Adw.ApplicationWindow):
         return card, value_label, detail_label
 
     @staticmethod
+    def _make_wide_card(icon_name, title):
+        """The wide-layout counterpart of a status card: a real card with
+        an icon+title header, but no popover — its detail body is appended
+        directly below the header (by `_on_wide_layout`, moving the same
+        widget that lives in the compact card's popover in narrow mode), so
+        the full detail is always visible without a click."""
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        card.add_css_class("status-card")
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        header.append(Gtk.Image(icon_name=icon_name))
+        title_label = Gtk.Label(label=title, xalign=0, hexpand=True)
+        title_label.add_css_class("heading")
+        header.append(title_label)
+        card.append(header)
+        return card
+
+    @staticmethod
     def _set_card_state(card, kind):
         """kind: "ok" (quiet, no color), "warning", or "error"."""
         card.remove_css_class("warning")
@@ -629,40 +657,62 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if kind in ("warning", "error"):
             card.add_css_class(kind)
 
+    def _set_status_severity(self, name, kind):
+        """Applies `kind` to both the compact card (narrow layout) and its
+        wide-layout counterpart, so the two stay in sync regardless of
+        which one is currently visible — `name` is "system"/"backups"/
+        "updates", matching the `{name}_card`/`{name}_wide_card` attrs."""
+        self._set_card_state(getattr(self, f"{name}_card"), kind)
+        self._set_card_state(getattr(self, f"{name}_wide_card"), kind)
+
+    # (name, detail_body attr, wide-card attr) for the three status cards —
+    # walked by _on_wide_layout/_on_narrow_layout to move each card's detail
+    # body between its popover (narrow layout) and its wide-card frame
+    # (wide layout), so the same widgets show either behind a click or
+    # always inline rather than building two copies of the content.
+    _STATUS_CARD_NAMES = ("system", "backups", "updates")
+
     def _on_wide_layout(self, _breakpoint):
         """Window widened past the breakpoint (typically maximized): move
-        Today's Events and the status-card row out of the single scrolling
-        column and side by side instead — events on the left (still
+        Today's Events and the status cards out of the single scrolling
+        column and side by side instead — Events on the left (still
         growing to fill the space), the three status cards stacked in a
-        narrower column on the right, so a maximized window uses its width
-        instead of just stretching a single column across it."""
+        narrower column on the right with their full detail shown inline
+        (no click needed), so a maximized window uses its width instead of
+        just stretching a single column across it."""
         self.root_box.remove(self.events_expander)
         self.root_box.remove(self.status_row)
         self.events_expander.set_hexpand(True)
-        self.status_row.set_orientation(Gtk.Orientation.VERTICAL)
-        self.status_row.set_homogeneous(False)
-        self.status_row.set_size_request(280, -1)
-        # Each card is set hexpand=True (so it fills this column's width
-        # once stacked vertically) — but Gtk.Box propagates a child's
-        # hexpand up to the box itself, so without this, status_row would
-        # also claim hexpand and stretch across most of wide_row instead of
-        # staying a narrow side column next to Events.
-        self.status_row.set_hexpand(False)
+
+        for name in self._STATUS_CARD_NAMES:
+            compact_card = getattr(self, f"{name}_card")
+            wide_card = getattr(self, f"{name}_wide_card")
+            detail_body = getattr(self, f"{name}_detail_body")
+            compact_card.get_popover().set_child(None)
+            wide_card.append(detail_body)
+
+        self.wide_status_column.set_size_request(320, -1)
+        self.wide_status_column.set_hexpand(False)
         self.wide_row.append(self.events_expander)
-        self.wide_row.append(self.status_row)
+        self.wide_row.append(self.wide_status_column)
         self.root_box.insert_child_after(self.wide_row, self.weather_expander)
 
     def _on_narrow_layout(self, _breakpoint):
         """Window narrower than the breakpoint again — put Today's Events
-        and the status row back into their normal stacked order."""
+        and the status cards back into their normal stacked, click-for-
+        detail order."""
         self.root_box.remove(self.wide_row)
         self.wide_row.remove(self.events_expander)
-        self.wide_row.remove(self.status_row)
+        self.wide_row.remove(self.wide_status_column)
         self.events_expander.set_hexpand(False)
-        self.status_row.set_orientation(Gtk.Orientation.HORIZONTAL)
-        self.status_row.set_homogeneous(True)
-        self.status_row.set_size_request(-1, -1)
-        self.status_row.set_hexpand(True)
+
+        for name in self._STATUS_CARD_NAMES:
+            compact_card = getattr(self, f"{name}_card")
+            wide_card = getattr(self, f"{name}_wide_card")
+            detail_body = getattr(self, f"{name}_detail_body")
+            wide_card.remove(detail_body)
+            compact_card.get_popover().set_child(detail_body)
+
         self.root_box.insert_child_after(self.events_expander, self.weather_expander)
         self.root_box.insert_child_after(self.status_row, self.events_expander)
 
@@ -997,14 +1047,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self._set_box_message(self.backup_box, f"Couldn't check backup status: {error}")
             self.backups_card_value.set_label("Couldn't check")
             self.backups_card_detail.set_visible(False)
-            self._set_card_state(self.backups_card, "error")
+            self._set_status_severity("backups", "error")
             self._update_window_title()
             return
         if not jobs:
             self._set_box_message(self.backup_box, "No Pereprava jobs configured.")
             self.backups_card_value.set_label("Not configured")
             self.backups_card_detail.set_visible(False)
-            self._set_card_state(self.backups_card, "ok")
+            self._set_status_severity("backups", "ok")
             self._update_window_title()
             return
         failed = [j for j in jobs if j.get("state") == "failed"]
@@ -1013,17 +1063,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.backups_card_value.set_label(f"{len(failed)} failed")
             self.backups_card_detail.set_label(", ".join(j.get("name", "?") for j in failed))
             self.backups_card_detail.set_visible(True)
-            self._set_card_state(self.backups_card, "error")
+            self._set_status_severity("backups", "error")
         elif running:
             self.backups_card_value.set_label("Running")
             self.backups_card_detail.set_label(", ".join(j.get("name", "?") for j in running))
             self.backups_card_detail.set_visible(True)
-            self._set_card_state(self.backups_card, "ok")
+            self._set_status_severity("backups", "ok")
         else:
             self.backups_card_value.set_label("Up to date")
             self.backups_card_detail.set_label(f"{len(jobs)} job{'s' if len(jobs) != 1 else ''}")
             self.backups_card_detail.set_visible(True)
-            self._set_card_state(self.backups_card, "ok")
+            self._set_status_severity("backups", "ok")
         self._clear_box(self.backup_box)
         for job in jobs:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -1393,16 +1443,16 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.system_card_value.set_label("Needs attention")
             self.system_card_detail.set_label(" · ".join(problem_texts) or "See details")
             self.system_card_detail.set_visible(True)
-            self._set_card_state(self.system_card, "error")
+            self._set_status_severity("system", "error")
         elif any_error:
             self.system_card_value.set_label("Partly checked")
             self.system_card_detail.set_visible(False)
-            self._set_card_state(self.system_card, "ok")
+            self._set_status_severity("system", "ok")
         else:
             self.system_card_value.set_label("Healthy")
             self.system_card_detail.set_label(" · ".join(healthy_bits) if healthy_bits else "")
             self.system_card_detail.set_visible(bool(healthy_bits))
-            self._set_card_state(self.system_card, "ok")
+            self._set_status_severity("system", "ok")
         self._update_window_title()
 
     @staticmethod
@@ -1559,7 +1609,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.status_label.set_label(text)
         self.updates_card_value.set_label(text)
         self.updates_card_detail.set_visible(False)
-        self._set_card_state(self.updates_card, "ok")
+        self._set_status_severity("updates", "ok")
 
     def refresh_status(self):
         if self.already_ran_today():
@@ -1577,7 +1627,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.result_label.set_label("No update has run yet")
             self.updates_card_value.set_label("Never run")
             self.updates_card_detail.set_visible(False)
-            self._set_card_state(self.updates_card, "ok")
+            self._set_status_severity("updates", "ok")
         elif result.get("success"):
             self.result_icon.set_from_icon_name("emblem-ok-symbolic")
             self.result_label.set_label(f"Last update succeeded at {result.get('time', '?')}")
@@ -1585,7 +1635,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.updates_card_value.set_label("Up to date")
             self.updates_card_detail.set_label(f"Ran {result.get('time', '?')}")
             self.updates_card_detail.set_visible(True)
-            self._set_card_state(self.updates_card, "ok")
+            self._set_status_severity("updates", "ok")
         else:
             self.result_icon.set_from_icon_name("dialog-error-symbolic")
             self.result_label.set_label(f"Last update failed at {result.get('time', '?')}")
@@ -1593,7 +1643,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.updates_card_value.set_label("Failed")
             self.updates_card_detail.set_label(f"At {result.get('time', '?')} — Run Anyway to retry")
             self.updates_card_detail.set_visible(True)
-            self._set_card_state(self.updates_card, "error")
+            self._set_status_severity("updates", "error")
 
         self.render_history()
         self._update_window_title()

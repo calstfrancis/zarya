@@ -1,17 +1,16 @@
-# Zarya v0.17.1 "True Face"
+# Zarya v0.17.2 "Open Book"
 
 **Released:** 2026-09-24
 
 ## What's new
 
-- **Fixed:** the System/Backups/Updates status cards had no visible
-  background or border at all when everything was fine — just text
-  floating in space, only looking like an actual card once colored amber
-  or red for a problem. They now look like a real card at all times; only
-  the color changes when something needs attention.
-- **Fixed:** in the maximized wide layout (v0.17.0), the status-card
-  column was stretching to fill most of the window's width instead of
-  staying a narrow column next to Today's Events.
+- **Fixed:** in the maximized wide layout, System/Backups/Updates still
+  only showed the same one-line summary as the normal window. They now
+  show each card's full detail directly inline — storage bars, the backup
+  job list, the update log/history/Run Now button — with no click needed,
+  matching the design this layout was built from. The normal (narrow)
+  window is unchanged: cards there still show a one-line summary you click
+  for the detail popover.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 

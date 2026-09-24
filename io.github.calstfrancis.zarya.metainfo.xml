@@ -39,6 +39,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.17.2" date="2026-09-24">
+      <description>
+        <p>
+          "Open Book". In the maximized wide layout, System/Backups/Updates
+          still only showed a one-line summary like the normal window — they
+          now show each card's full detail (storage bars, the backup job
+          list, the update log/history/Run Now) directly inline, with no
+          click needed. The normal window is unchanged.
+        </p>
+      </description>
+    </release>
     <release version="0.17.1" date="2026-09-24">
       <description>
         <p>
