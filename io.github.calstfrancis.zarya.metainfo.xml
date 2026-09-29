@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.20.0" date="2026-09-29">
+      <description>
+        <p>
+          "Clear Horizon". The hourly forecast now starts at the current
+          hour and runs 24 hours forward, with no past hours, and gains a
+          Wind row. Fixes the System card's summary text overrunning the
+          card in an unmaximized window.
+        </p>
+      </description>
+    </release>
     <release version="0.19.0" date="2026-09-24">
       <description>
         <p>

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.0] "Clear Horizon" — the hourly forecast looks forward
+
+- Changed: the hourly weather strip now starts at the current hour ("Now") and runs 24 hours forward; past hours are no longer shown, and the strip always opens scrolled to the start. Midnight columns carry the weekday.
+- Added: a Wind row (km/h, or mph with Fahrenheit) to the hourly strip.
+- Fixed: the System card's summary text overran the card when the window wasn't maximized; each reading (disks, drives, CPU) now sits on its own line so the card sizes to fit.
+
 ## [0.19.0] "True to Form" — a closer pass against the actual mockup
 
 A full, area-by-area pass matching the app against the mockup it was built

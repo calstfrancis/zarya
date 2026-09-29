@@ -10,7 +10,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Adw, Gio, GLib, Gtk
+from gi.repository import Adw, Gio, GLib, Gtk, Pango
 
 from . import __version__, backup_status, changelog, disk_growth, google_calendar, habits, keyring, styles, system_health, system_updates, tray, weather, weather_alerts, weather_aqi
 from .onboarding import OnboardingWindow
@@ -660,7 +660,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         value_label.add_css_class("status-card-value")
         box.append(value_label)
 
-        detail_label = Gtk.Label(xalign=0, wrap=True)
+        detail_label = Gtk.Label(xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR)
         detail_label.add_css_class("caption")
         detail_label.add_css_class("dim-label")
         detail_label.set_visible(False)
@@ -1063,8 +1063,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         else:
             self.weather_aqi_label.set_label("")
 
-        self.weather_table.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], unit_letter)
-        self.weather_table.center_on_now()
+        if units == "fahrenheit":
+            wind = [v * 0.621371 for v in d.get("wind_kmh", [0] * len(d["hours"]))]
+            wind_unit = "mph"
+        else:
+            wind = d.get("wind_kmh", [0] * len(d["hours"]))
+            wind_unit = "km/h"
+        self.weather_table.set_data(d["hours"], temps, d["humidity"], d["precip_prob"], wind, unit_letter, wind_unit)
+        self.weather_table.scroll_to_start()
         self.render_alerts(d.get("alerts", []))
 
         sunrise = weather.format_sun_time(d.get("sunrise"))
@@ -1566,7 +1572,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         )
         if any_problem:
             self._set_status_value("system", "Needs attention")
-            self.system_card_detail.set_label(" · ".join(problem_texts) or "See details")
+            self.system_card_detail.set_label("\n".join(problem_texts) or "See details")
             self.system_card_detail.set_visible(True)
             self._set_status_severity("system", "error")
         elif any_error:
@@ -1575,7 +1581,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self._set_status_severity("system", "ok")
         else:
             self._set_status_value("system", "Healthy")
-            self.system_card_detail.set_label(" · ".join(healthy_bits) if healthy_bits else "")
+            self.system_card_detail.set_label("\n".join(healthy_bits) if healthy_bits else "")
             self.system_card_detail.set_visible(bool(healthy_bits))
             self._set_status_severity("system", "ok")
         self._update_window_title()

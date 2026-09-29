@@ -167,13 +167,13 @@ def geocode(location):
 
 def fetch_today(lat, lon):
     # past_days=1 + forecast_days=2 gives three full days (yesterday, today,
-    # tomorrow) so the ±12h hourly window below always has enough on either
-    # side of "now" to slice from, however close to midnight "now" is.
+    # tomorrow); yesterday feeds the day-length delta, and today+tomorrow
+    # always cover the 24 hours forward from "now" below.
     params = {
         "latitude": lat,
         "longitude": lon,
         "daily": "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset",
-        "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability",
+        "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability,wind_speed_10m",
         "current": "temperature_2m,apparent_temperature,weather_code,precipitation",
         "timezone": "auto",
         "past_days": 1,
@@ -193,14 +193,14 @@ def fetch_today(lat, lon):
 
     # Find "now" in the hourly series (matched on date+hour, not hour alone
     # — several entries share the same hour-of-day once the window below
-    # can span two calendar days) and slice to the 12 hours before and
-    # after it, inclusive of "now" itself (25 points total).
+    # can span two calendar days) and slice to "now" plus the next 23 hours
+    # (24 points) — past weather isn't shown.
     now_prefix = datetime.datetime.now().strftime("%Y-%m-%dT%H")
     now_idx = next(
         (i for i, t in enumerate(hourly["time"]) if t.startswith(now_prefix)),
         len(hourly["time"]) // 2,  # shouldn't happen; degrade to the window's middle
     )
-    lo, hi = max(0, now_idx - 12), min(len(hourly["time"]), now_idx + 13)
+    lo, hi = now_idx, min(len(hourly["time"]), now_idx + 24)
 
     # "auto" timezone makes these local ISO timestamps (e.g.
     # "2026-09-24T06:42"), same as the hourly series above. Index 0 (not
@@ -224,6 +224,7 @@ def fetch_today(lat, lon):
         "temp_c": hourly["temperature_2m"][lo:hi],
         "humidity": [v if v is not None else 0 for v in hourly["relative_humidity_2m"][lo:hi]],
         "precip_prob": [v if v is not None else 0 for v in hourly["precipitation_probability"][lo:hi]],
+        "wind_kmh": [v if v is not None else 0 for v in hourly["wind_speed_10m"][lo:hi]],
         "current_temp_c": current.get("temperature_2m"),
         "feels_like_c": current.get("apparent_temperature"),
         "current_code": current.get("weather_code"),

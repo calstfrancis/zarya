@@ -12,7 +12,7 @@ class WeatherTable(Gtk.Box):
             column_spacing=10, row_spacing=4,
             margin_top=4, margin_bottom=4, margin_start=4, margin_end=8,
         )
-        for row, title in enumerate(("Hour", "Temp", "Rain", "Humidity")):
+        for row, title in enumerate(("Hour", "Temp", "Rain", "Humidity", "Wind")):
             label = Gtk.Label(label=title, xalign=1)
             label.add_css_class("dim-label")
             label.add_css_class("caption")
@@ -45,12 +45,15 @@ class WeatherTable(Gtk.Box):
         adj.set_value(max(adj.get_lower(), min(adj.get_upper() - adj.get_page_size(), adj.get_value() + delta * 40)))
         return True
 
-    def set_data(self, hours, temps, humidity, precip, temp_unit):
+    def set_data(self, hours, temps, humidity, precip, wind, temp_unit, wind_unit):
         self._hours = hours
 
         child = self.label_grid.get_child_at(0, 1)
         if child is not None:
             child.set_label(f"Temp (°{temp_unit})")
+        child = self.label_grid.get_child_at(0, 4)
+        if child is not None:
+            child.set_label(f"Wind ({wind_unit})")
 
         # No rain in the forecast window at all — hide the whole Rain row
         # rather than a column of 25 "0%" labels nobody needs to read.
@@ -65,64 +68,34 @@ class WeatherTable(Gtk.Box):
             self.data_grid.remove(child)
             child = next_child
 
-        now_hour = datetime.datetime.now().hour
-
         for i, hour_iso in enumerate(hours):
-            is_now = self._hour_of(hour_iso) == now_hour
+            is_now = i == 0
 
             hour_text = "Now" if is_now else self._format_hour(hour_iso)
             hour_label = Gtk.Label(label=hour_text)
             temp_label = Gtk.Label(label=f"{round(temps[i])}°")
             humidity_label = Gtk.Label(label=f"{round(humidity[i])}%")
+            wind_label = Gtk.Label(label=f"{round(wind[i])}")
 
-            for label in (hour_label, temp_label, humidity_label):
-                label.set_width_chars(6)
+            for label in (hour_label, temp_label, humidity_label, wind_label):
+                label.set_width_chars(7)
                 if is_now:
                     label.add_css_class("now-hour")
 
             self.data_grid.attach(hour_label, i, 0, 1, 1)
             self.data_grid.attach(temp_label, i, 1, 1, 1)
             self.data_grid.attach(humidity_label, i, 3, 1, 1)
+            self.data_grid.attach(wind_label, i, 4, 1, 1)
 
             if has_rain:
                 precip_label = Gtk.Label(label=f"{round(precip[i])}%")
-                precip_label.set_width_chars(6)
+                precip_label.set_width_chars(7)
                 if is_now:
                     precip_label.add_css_class("now-hour")
                 self.data_grid.attach(precip_label, i, 2, 1, 1)
 
-    def center_on_now(self):
-        now_hour = datetime.datetime.now().hour
-        idx = None
-        for i, hour_iso in enumerate(self._hours):
-            if self._hour_of(hour_iso) == now_hour:
-                idx = i
-                break
-        if idx is None:
-            return
-
-        # Polling get_width() until it's nonzero used to give up after 20
-        # attempts (~600ms), which wasn't always enough for the table to be
-        # realized and allocated on first launch — the real, user-visible
-        # bug this was fixed for: the hourly strip silently stayed scrolled
-        # to its leftmost (oldest) hours instead of centering on "now".
-        # ~3s of polling at a light interval costs nothing once the width
-        # does resolve (it stops immediately), and is a much safer margin.
-        attempts = [0]
-
-        def attempt():
-            width = self.data_grid.get_width()
-            if width <= 0:
-                attempts[0] += 1
-                return attempts[0] < 100
-            n = max(1, len(self._hours))
-            col_width = width / n
-            adj = self.scroller.get_hadjustment()
-            target = col_width * idx + col_width / 2 - adj.get_page_size() / 2
-            adj.set_value(max(adj.get_lower(), min(adj.get_upper() - adj.get_page_size(), target)))
-            return False
-
-        GLib.timeout_add(30, attempt)
+    def scroll_to_start(self):
+        self.scroller.get_hadjustment().set_value(0)
 
     @staticmethod
     def _hour_of(iso_str):
@@ -138,4 +111,11 @@ class WeatherTable(Gtk.Box):
             return iso_str
         suffix = "AM" if hh < 12 else "PM"
         h12 = hh % 12 or 12
-        return f"{h12} {suffix}"
+        text = f"{h12} {suffix}"
+        if hh == 0:
+            try:
+                day = datetime.datetime.fromisoformat(iso_str).strftime("%a")
+                text = f"{day} {text}"
+            except ValueError:
+                pass
+        return text
