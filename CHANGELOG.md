@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.20.1] "Full Shelf" — every mounted disk, not just / and home
+
+- Fixed: the System card only ever showed `/` and your home folder, so any extra drive (e.g. a SATA disk mounted at `/mnt/data`) was missing. It now lists every real block-device filesystem mounted on the host, labelled by its mount folder, skipping boot/EFI partitions and collapsing btrfs subvolumes of one device into a single entry.
+
 ## [0.20.0] "Clear Horizon" — the hourly forecast looks forward
 
 - Changed: the hourly weather strip now starts at the current hour ("Now") and runs 24 hours forward; past hours are no longer shown, and the strip always opens scrolled to the start. Midnight columns carry the weekday.

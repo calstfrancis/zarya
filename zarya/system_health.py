@@ -17,23 +17,71 @@ import json
 import os
 import shutil
 
-paths = ["/", os.path.expanduser("~")]
-seen_totals = set()
+# Every real, block-device-backed filesystem mounted on the host — not just
+# "/" and $HOME, which used to hide any extra drive (e.g. a SATA data disk
+# mounted at /mnt/data). Pseudo filesystems, boot/EFI partitions, and
+# container/package plumbing are skipped; multiple mounts of one device
+# (btrfs subvolumes, bind mounts) collapse to a single entry.
+REAL_FS = {
+    "ext2", "ext3", "ext4", "xfs", "btrfs", "f2fs", "zfs", "jfs", "reiserfs",
+    "ntfs", "ntfs3", "fuseblk", "exfat", "vfat", "hfsplus",
+}
+SKIP_PREFIXES = ("/boot", "/efi", "/run", "/snap", "/var/lib", "/sys", "/proc", "/dev", "/tmp")
+
+def unescape(s):
+    return s.replace("\\040", " ").replace("\\011", "\t").replace("\\134", "\\")
+
+home = os.path.realpath(os.path.expanduser("~"))
+mounts = []
+try:
+    with open("/proc/self/mounts") as f:
+        for line in f:
+            parts = line.split()
+            if len(parts) < 3:
+                continue
+            source, mountpoint, fstype = parts[0], unescape(parts[1]), parts[2]
+            if fstype not in REAL_FS or not source.startswith("/dev/"):
+                continue
+            if mountpoint != "/" and mountpoint.startswith(SKIP_PREFIXES):
+                continue
+            mounts.append((source, mountpoint))
+except OSError:
+    pass
+
+home_mount = "/"
+for _src, mp in mounts:
+    if (home == mp or home.startswith(mp.rstrip("/") + "/")) and len(mp) > len(home_mount):
+        home_mount = mp
+
+by_device = {}
+for source, mountpoint in mounts:
+    current = by_device.get(source)
+    if current is None or len(mountpoint) < len(current):
+        by_device[source] = mountpoint
+
 results = []
-for path in paths:
+seen = set()
+for source, mountpoint in by_device.items():
     try:
-        usage = shutil.disk_usage(path)
+        usage = shutil.disk_usage(mountpoint)
     except OSError:
         continue
-    # Dedup by capacity, not st_dev: btrfs subvolumes (openSUSE's default
-    # layout puts /home on its own subvolume) report different st_dev for
-    # the same underlying pool, so st_dev alone doesn't collapse them —
-    # matching total bytes is a much more reliable signal they're the same
-    # storage.
-    if usage.total in seen_totals:
+    if usage.total <= 0:
         continue
-    seen_totals.add(usage.total)
-    results.append({"path": path, "total": usage.total, "used": usage.used, "free": usage.free})
+    # Same capacity + same usage across different device nodes is one pool
+    # seen through several nodes (btrfs multi-device / subvolume mounts).
+    key = (usage.total, usage.used)
+    if key in seen:
+        continue
+    seen.add(key)
+    if mountpoint == "/":
+        label = "System ( / )"
+    elif mountpoint == home_mount:
+        label = "Home"
+    else:
+        label = os.path.basename(mountpoint.rstrip("/")) or mountpoint
+    results.append({"path": mountpoint, "label": label, "total": usage.total, "used": usage.used, "free": usage.free})
+results.sort(key=lambda r: (r["path"] != "/", r["label"] != "Home", r["path"]))
 print(json.dumps(results))
 '''
 

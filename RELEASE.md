@@ -1,14 +1,15 @@
-# Zarya v0.20.0 "Clear Horizon"
+# Zarya v0.20.1 "Full Shelf"
 
 **Released:** 2026-09-29
 
 ## What's new
 
-- **The hourly forecast looks forward.** It starts at "Now" and runs 24
-  hours ahead; past hours are gone. Midnight columns show the weekday.
-- **A Wind row** (km/h, or mph with Fahrenheit units) joins the hourly table.
-- **Fixed:** the System card's summary overran the card in an unmaximized
-  window. Each reading now sits on its own line.
+- **The System card shows every mounted disk.** It used to check only `/` and
+  your home folder, so an extra drive (for example a SATA disk at `/mnt/data`)
+  never appeared. Each real block-device filesystem is now listed, labelled
+  by its mount folder; boot/EFI partitions and removable media are skipped.
+
+See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 
 ## Download
 

@@ -1473,7 +1473,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
                 critical = pct >= 95
                 warning = pct >= 85
                 any_problem = any_problem or critical
-                name = "System ( / )" if disk["path"] == "/" else "Home"
+                name = disk.get("label") or ("System ( / )" if disk["path"] == "/" else "Home")
                 if critical or warning:
                     problem_texts.append(f"{name} is {pct:.0f}% full")
                 else:
