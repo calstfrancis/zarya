@@ -1,15 +1,15 @@
-# Zarya v0.20.2 "Snug Fit"
+# Zarya v0.20.3 "Flex Room"
 
 **Released:** 2026-09-30
 
 ## What's new
 
-- **Zarya works on smaller screens.** Maximizing on a smaller monitor no
-  longer hides the To-Do/Habits sidebar or cuts off the right-hand cards; a
-  sidebar width saved on a bigger screen can't push it out of view.
-- **No more big vertical gap** between the status-card rows, and the
-  side-by-side layout now waits until the window is wide enough (1500px) to
-  give the cards room.
+- **Panes resize to fit.** The left edge of the content (weather, Events) is
+  no longer cut off at wide window sizes; the content/sidebar split now
+  always leaves the content the room it needs and the sidebar at least 300px.
+- **Long backup names truncate** instead of forcing the cards wider than the
+  window, and the status cards now use the extra width in the wide layout.
+- **Forecast labels line up** with their values in the hourly strip.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 

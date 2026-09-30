@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.3] "Flex Room" — panes resize to fit
+
+- Fixed: at wide window sizes the left edge of the content (weather, Events) was cut off. The split between content and sidebar is now kept within what the content needs and the sidebar's 300px minimum, and the sidebar defaults to a slim width on a fresh install.
+- Fixed: long backup-job names no longer force the status cards (and the whole content pane) wider than the window; they truncate instead.
+- Changed: in the wide layout the status cards now take the extra width rather than sharing it evenly with an often-empty Events column.
+- Fixed: the hourly forecast's row labels (Hour/Temp/Rain/Humidity/Wind) now line up with their values.
+
 ## [0.20.2] "Snug Fit" — small-screen layout
 
 - Fixed: maximizing on a smaller screen no longer hides the To-Do/Habits sidebar or clips the content on the right. The content pane can now shrink, and a sidebar position saved on a larger monitor is clamped so the sidebar always stays visible.

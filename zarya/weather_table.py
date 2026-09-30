@@ -15,7 +15,6 @@ class WeatherTable(Gtk.Box):
         for row, title in enumerate(("Hour", "Temp", "Rain", "Humidity", "Wind")):
             label = Gtk.Label(label=title, xalign=1)
             label.add_css_class("dim-label")
-            label.add_css_class("caption")
             self.label_grid.attach(label, 0, row, 1, 1)
         self.append(self.label_grid)
 

@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.20.3" date="2026-09-30">
+      <description>
+        <p>
+          "Flex Room". The content and sidebar panes now resize to fit
+          any window size without cutting off the left edge, long backup
+          names truncate instead of widening the window, and the hourly
+          forecast labels line up with their values.
+        </p>
+      </description>
+    </release>
     <release version="0.20.2" date="2026-09-30">
       <description>
         <p>

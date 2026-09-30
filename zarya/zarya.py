@@ -480,7 +480,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # moves `events_expander`/`wide_status_grid` into it (and back out
         # again below the min-width) rather than building two separate
         # copies of that content.
-        self.wide_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14, homogeneous=True)
+        self.wide_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14, homogeneous=False)
         wide_breakpoint = Adw.Breakpoint.new(
             Adw.BreakpointCondition.new_length(Adw.BreakpointConditionLengthType.MIN_WIDTH, 1500, Adw.LengthUnit.PX)
         )
@@ -526,10 +526,12 @@ class ZaryaWindow(Adw.ApplicationWindow):
         main_paned.set_end_child(sidebar_box)
         main_paned.set_resize_end_child(False)
         main_paned.set_shrink_end_child(False)
-        main_paned.set_position(self.config.get("sidebar_paned_position", 700))
+        main_paned.set_position(self.config.get("sidebar_paned_position", 10000))
+        self._paned_default = "sidebar_paned_position" not in self.config
         self._paned_ready = False
         self._main_paned = main_paned
         main_paned.connect("notify::max-position", self._clamp_paned)
+        main_paned.connect("notify::min-position", self._clamp_paned)
         GLib.timeout_add(500, self._on_paned_ready)
         main_paned.connect("notify::position", self._on_paned_position_changed)
         self._paned_save_timeout = None
@@ -759,7 +761,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         it, and matches the mockup's 2x2 status grid exactly."""
         self.root_box.remove(self.events_expander)
         self.root_box.remove(self.status_row)
-        self.events_expander.set_hexpand(True)
+        self.events_expander.set_hexpand(False)
+        self.wide_status_grid.set_hexpand(True)
 
         for name in self._STATUS_CARD_NAMES:
             compact_card = getattr(self, f"{name}_card")
@@ -817,11 +820,19 @@ class ZaryaWindow(Adw.ApplicationWindow):
     # --- sidebar paned ---
 
     def _clamp_paned(self, paned, _pspec=None):
-        # On small/maximized windows a saved position from a bigger screen
-        # would push the sidebar off-screen; keep it at least 300px wide.
-        limit = paned.get_width() - 300
-        if limit > 300 and paned.get_position() > limit:
-            paned.set_position(limit)
+        # Keep the split sane on any window size: the sidebar never gets
+        # squeezed below 300px, and the content pane never gets less than
+        # it needs (a too-small saved position clips the content's left).
+        total = paned.get_width()
+        if total <= 0:
+            return
+        start_min = paned.get_start_child().measure(Gtk.Orientation.HORIZONTAL, -1)[0]
+        hi = total - (360 if self._paned_default else 300)
+        lo = min(start_min, hi)
+        pos = paned.get_position()
+        target = hi if self._paned_default and pos > hi else max(lo, min(pos, hi))
+        if target != pos:
+            paned.set_position(target)
 
     def _on_paned_ready(self):
         # Setting the initial position programmatically also fires
@@ -1182,7 +1193,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         for job in jobs:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             state = job.get("state", "idle")
-            name_label = Gtk.Label(label=job.get("name", "?"), xalign=0, hexpand=True)
+            name_label = Gtk.Label(label=job.get("name", "?"), xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END)
             row.append(name_label)
 
             tooltip_lines = []
@@ -1308,7 +1319,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             icon = Gtk.Image(icon_name="folder-symbolic")
             icon.add_css_class("dim-label")
             row.append(icon)
-            name_label = Gtk.Label(label=name, xalign=0, hexpand=True)
+            name_label = Gtk.Label(label=name, xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END)
             row.append(name_label)
             size_label = Gtk.Label(label=self._format_bytes(current))
             size_label.add_css_class("dim-label")
@@ -1492,7 +1503,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
                 column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
                 row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-                name_label = Gtk.Label(label=name, xalign=0, hexpand=True)
+                name_label = Gtk.Label(label=name, xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END)
                 row.append(name_label)
                 value_label = Gtk.Label(label=f"{pct:.0f}% of {self._format_bytes(total)}")
                 value_label.add_css_class("dim-label")
