@@ -508,12 +508,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
         sidebar_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0, vexpand=True)
         self.sidebar_box = sidebar_box
-        sidebar_box.append(self.todo_sidebar)
+        self.sidebar_scroller = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
+        self.sidebar_scroller.set_propagate_natural_height(False)
+        self.sidebar_scroller.set_child(sidebar_box)
 
         self._events_today = None
         coming_card = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL, spacing=4,
-            margin_top=0, margin_bottom=10, margin_start=8, margin_end=12,
+            margin_top=8, margin_bottom=2, margin_start=8, margin_end=12,
         )
         coming_card.add_css_class("fondwave-terminal")
         coming_card.add_css_class("card")
@@ -527,6 +529,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         coming_card.append(self.rain_soon_label)
         self.coming_card = coming_card
         sidebar_box.append(coming_card)
+        sidebar_box.append(self.todo_sidebar)
         self._render_coming_up()
         GLib.timeout_add_seconds(30, self._on_coming_up_timer)
 
@@ -552,15 +555,13 @@ class ZaryaWindow(Adw.ApplicationWindow):
         main_paned.set_start_child(self.toast_overlay)
         main_paned.set_resize_start_child(True)
         main_paned.set_shrink_start_child(True)
-        main_paned.set_end_child(sidebar_box)
+        main_paned.set_end_child(self.sidebar_scroller)
         main_paned.set_resize_end_child(False)
         main_paned.set_shrink_end_child(False)
-        main_paned.set_position(self.config.get("sidebar_paned_position", 10000))
-        self._paned_default = "sidebar_paned_position" not in self.config
+        self._applying_paned = False
         self._paned_ready = False
         self._main_paned = main_paned
-        main_paned.connect("notify::max-position", self._clamp_paned)
-        main_paned.connect("notify::min-position", self._clamp_paned)
+        main_paned.connect("notify::max-position", self._apply_paned)
         GLib.timeout_add(500, self._on_paned_ready)
         main_paned.connect("notify::position", self._on_paned_position_changed)
         self._paned_save_timeout = None
@@ -854,20 +855,23 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     # --- sidebar paned ---
 
-    def _clamp_paned(self, paned, _pspec=None):
-        # Keep the split sane on any window size: the sidebar never gets
-        # squeezed below 300px, and the content pane never gets less than
-        # it needs (a too-small saved position clips the content's left).
+    SIDEBAR_MIN = 300
+
+    def _apply_paned(self, paned, _pspec=None):
+        """Sidebar width, not split position, is what's remembered: an
+        explicit drag wins, otherwise ~26% of the window (300-440px). The
+        content pane is never squeezed below what it needs."""
         total = paned.get_width()
         if total <= 0:
             return
+        wanted = self.config.get("sidebar_width") or max(self.SIDEBAR_MIN, min(440, round(total * 0.26)))
         start_min = paned.get_start_child().measure(Gtk.Orientation.HORIZONTAL, -1)[0]
-        hi = total - (360 if self._paned_default else 300)
-        lo = min(start_min, hi)
-        pos = paned.get_position()
-        target = hi if self._paned_default and pos > hi else max(lo, min(pos, hi))
-        if target != pos:
+        width = max(self.SIDEBAR_MIN, min(wanted, total - start_min))
+        target = total - width
+        if target != paned.get_position():
+            self._applying_paned = True
             paned.set_position(target)
+            self._applying_paned = False
 
     def _on_paned_ready(self):
         # Setting the initial position programmatically also fires
@@ -878,15 +882,15 @@ class ZaryaWindow(Adw.ApplicationWindow):
         return False
 
     def _on_paned_position_changed(self, paned, _pspec):
-        if not self._paned_ready:
+        if not self._paned_ready or self._applying_paned or paned.get_width() <= 0:
             return
         if self._paned_save_timeout is not None:
             GLib.source_remove(self._paned_save_timeout)
-        position = paned.get_position()
+        width = paned.get_width() - paned.get_position()
 
         def save():
             self._paned_save_timeout = None
-            self.config["sidebar_paned_position"] = position
+            self.config["sidebar_width"] = width
             save_config(self.config)
             return False
 
@@ -1664,7 +1668,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self._compact = on
         self.config["compact_mode"] = on
         save_config(self.config)
-        self.sidebar_box.set_visible(not on)
+        self.sidebar_scroller.set_visible(not on)
         self.events_expander.set_visible(not on)
         self.sun_pill.set_visible(not on)
         if self.weather_data:
@@ -1682,7 +1686,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
             self.root_box.remove(self.coming_card)
             self.coming_card.set_margin_start(8)
             self.coming_card.set_margin_end(12)
-            self.sidebar_box.insert_child_after(self.coming_card, self.todo_sidebar)
+            self.sidebar_box.prepend(self.coming_card)
             if self._pre_compact_size and not self.is_maximized():
                 self.set_default_size(*self._pre_compact_size)
             self._pre_compact_size = None

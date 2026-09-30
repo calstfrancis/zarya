@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.1] "Steady Shelf" — smarter sidebar
+
+- Changed: "Coming up" now sits at the top of the sidebar, above To-Do.
+- Changed: the sidebar remembers its *width* (not a raw split position). Until you drag it, it scales with the window (about 26%, between 300 and 440px), so it stays proportionate on both small and large screens; once you drag it, your width is kept across window sizes, never squeezing the content pane below what it needs.
+- Changed: the sidebar scrolls if the window is too short to fit Coming up, To-Do and Habits, instead of forcing the window taller.
+
 ## [0.21.0] "Small Hours" — Coming up, compact mode, even cards
 
 - Added: **Compact mode** — a toggle button at the left of the header bar shrinks Zarya to a slim single column (current weather, Coming up, status cards) and hides the hourly strip, events list and sidebar. Toggle again to restore your previous window size. The choice is remembered.

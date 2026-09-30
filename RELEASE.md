@@ -1,17 +1,14 @@
-# Zarya v0.21.0 "Small Hours"
+# Zarya v0.21.1 "Steady Shelf"
 
 **Released:** 2026-09-30
 
 ## What's new
 
-- **Coming up card.** The sidebar now shows what's on right now (with time
-  left), the next event with a live countdown, and a rain-soon line from the
-  hourly forecast.
-- **Compact mode.** One button in the header bar shrinks Zarya to a slim
-  single column with the weather, Coming up and status cards. Press it again
-  to return to your previous window size.
-- **Even status cards** that no longer clip their last line, and a tidier
-  sunrise/sunset block in the weather header.
+- **Coming up moves to the top** of the sidebar, above To-Do.
+- **The sidebar sizes itself.** It scales with the window (300-440px) until
+  you drag it; after that your chosen width is kept at any window size
+  without squeezing the content.
+- **Short windows** no longer force the window taller; the sidebar scrolls.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 
