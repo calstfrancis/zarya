@@ -28,9 +28,10 @@ weather, your backup status, and today's calendar events — all in one window.
   Events on the left, a 2-column grid of status cards (each showing its
   full detail inline, no click needed) on the right, sidebar beyond that —
   instead of one stretched column
-- A sidebar combining a to-do list (synced with Google Tasks) and a small
+- A sidebar combining a to-do list (synced with Google Tasks), a "Coming up" card (current/next event with a live countdown, plus a rain-soon line), and a small
   daily habit tracker with streaks and a weekly rollup — completed to-dos
   collapse out of the way, and delete buttons only show on hover
+- Compact mode: a header-bar toggle that shrinks Zarya to a slim single column (weather, Coming up, status cards)
 - A real system tray icon (StatusNotifierItem); autostart runs quietly in
   the background instead of opening a window (toggle in Preferences > Updates)
 - First-run onboarding wizard for city and Google Account setup

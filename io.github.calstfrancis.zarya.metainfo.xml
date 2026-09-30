@@ -39,6 +39,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.21.0" date="2026-09-30">
+      <description>
+        <p>
+          "Small Hours". New sidebar "Coming up" card with the current and
+          next event (live countdown) and a rain-soon line, a compact
+          mode for a slim single-column window, and evenly sized status
+          cards.
+        </p>
+      </description>
+    </release>
     <release version="0.20.3" date="2026-09-30">
       <description>
         <p>

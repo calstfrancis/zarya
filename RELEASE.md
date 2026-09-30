@@ -1,15 +1,17 @@
-# Zarya v0.20.3 "Flex Room"
+# Zarya v0.21.0 "Small Hours"
 
 **Released:** 2026-09-30
 
 ## What's new
 
-- **Panes resize to fit.** The left edge of the content (weather, Events) is
-  no longer cut off at wide window sizes; the content/sidebar split now
-  always leaves the content the room it needs and the sidebar at least 300px.
-- **Long backup names truncate** instead of forcing the cards wider than the
-  window, and the status cards now use the extra width in the wide layout.
-- **Forecast labels line up** with their values in the hourly strip.
+- **Coming up card.** The sidebar now shows what's on right now (with time
+  left), the next event with a live countdown, and a rain-soon line from the
+  hourly forecast.
+- **Compact mode.** One button in the header bar shrinks Zarya to a slim
+  single column with the weather, Coming up and status cards. Press it again
+  to return to your previous window size.
+- **Even status cards** that no longer clip their last line, and a tidier
+  sunrise/sunset block in the weather header.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 

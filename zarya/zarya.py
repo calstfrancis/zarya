@@ -240,6 +240,13 @@ class ZaryaWindow(Adw.ApplicationWindow):
         menu_button.set_popover(self.menu_popover)
         header.pack_end(menu_button)
 
+        self._compact = False
+        self._pre_compact_size = None
+        self.compact_button = Gtk.ToggleButton(icon_name="view-restore-symbolic", has_frame=False)
+        self.compact_button.set_tooltip_text("Compact mode")
+        self.compact_button.connect("toggled", lambda b: self.set_compact(b.get_active()))
+        header.pack_start(self.compact_button)
+
         refresh_all_button = Gtk.Button(icon_name="view-refresh-symbolic", has_frame=False)
         refresh_all_button.set_tooltip_text("Refresh everything")
         refresh_all_button.connect("clicked", self.on_refresh_all_clicked)
@@ -292,6 +299,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.weather_sun_label = Gtk.Label(xalign=0, wrap=True, valign=Gtk.Align.CENTER)
         self.weather_sun_label.add_css_class("caption")
         sun_pill = Gtk.Box(valign=Gtk.Align.CENTER)
+        self.sun_pill = sun_pill
         sun_pill.add_css_class("weather-sun-pill")
         sun_pill.append(self.weather_sun_label)
         hero_row.append(sun_pill)
@@ -329,7 +337,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # takes on color/detail text when something actually needs
         # attention — the common case (everything fine) should be quiet,
         # not a full page of "OK" rows.
-        status_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10, homogeneous=True)
+        status_row = Gtk.Grid(column_spacing=10, column_homogeneous=True)
         self.status_row = status_row
         root_box.append(status_row)
 
@@ -353,7 +361,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.system_card, self.system_card_value, self.system_card_detail = self._make_status_card(
             "computer-symbolic", "System", self.system_detail_body,
         )
-        status_row.append(self.system_card)
+        status_row.attach(self.system_card, 0, 0, 1, 1)
 
         # Backups
         self.backup_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
@@ -366,7 +374,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.backups_card, self.backups_card_value, self.backups_card_detail = self._make_status_card(
             "folder-remote-symbolic", "Backups", self.backups_detail_body,
         )
-        status_row.append(self.backups_card)
+        status_row.attach(self.backups_card, 1, 0, 1, 1)
 
         # Updates — the old bottom button row and its Update Log now live
         # entirely inside this card's popover (or inline, in the wide
@@ -441,7 +449,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.updates_card, self.updates_card_value, self.updates_card_detail = self._make_status_card(
             "software-update-available-symbolic", "Updates", self.updates_detail_body, popover_width=360,
         )
-        status_row.append(self.updates_card)
+        status_row.attach(self.updates_card, 2, 0, 1, 1)
 
         # --- Wide layout (maximized-ish widths): Today's Events beside the
         # status cards shown in FULL (their detail body inline, not behind
@@ -499,7 +507,28 @@ class ZaryaWindow(Adw.ApplicationWindow):
         self.todo_sidebar = TodoSidebar()
 
         sidebar_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0, vexpand=True)
+        self.sidebar_box = sidebar_box
         sidebar_box.append(self.todo_sidebar)
+
+        self._events_today = None
+        coming_card = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=4,
+            margin_top=0, margin_bottom=10, margin_start=8, margin_end=12,
+        )
+        coming_card.add_css_class("fondwave-terminal")
+        coming_card.add_css_class("card")
+        coming_title = Gtk.Label(label="Coming up", xalign=0)
+        coming_title.add_css_class("title-4")
+        coming_card.append(coming_title)
+        self.next_up_label = Gtk.Label(xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR)
+        self.rain_soon_label = Gtk.Label(xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR)
+        self.rain_soon_label.add_css_class("dim-label")
+        coming_card.append(self.next_up_label)
+        coming_card.append(self.rain_soon_label)
+        self.coming_card = coming_card
+        sidebar_box.append(coming_card)
+        self._render_coming_up()
+        GLib.timeout_add_seconds(30, self._on_coming_up_timer)
 
         habits_card = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL, spacing=6,
@@ -540,6 +569,9 @@ class ZaryaWindow(Adw.ApplicationWindow):
         toolbar_view.set_content(main_paned)
         self.set_content(toolbar_view)
 
+        if self.config.get("compact_mode"):
+            self.compact_button.set_active(True)
+
         self.refresh_status()
         if self.config.get("location"):
             self.fetch_weather()
@@ -552,6 +584,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         if keyring.lookup_google_refresh_token():
             self.fetch_events()
         else:
+            self._no_google = True
+            self._render_coming_up()
             self._set_box_message(self.events_box, "Connect your Google Account in Preferences to see today's events.")
         GLib.timeout_add_seconds(900, self._on_events_refresh_timer)
         self.fetch_disk_growth()
@@ -651,10 +685,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
         card = Gtk.MenuButton()
         card.add_css_class("status-card")
         card.add_css_class("flat")
-        card.set_valign(Gtk.Align.START)
+        card.set_valign(Gtk.Align.FILL)
         card.set_hexpand(True)
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True, margin_bottom=12)
         top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         top_row.append(Gtk.Image(icon_name=icon_name))
         title_label = Gtk.Label(label=title, xalign=0, hexpand=True)
@@ -666,7 +700,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         value_label.add_css_class("status-card-value")
         box.append(value_label)
 
-        detail_label = Gtk.Label(xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR)
+        detail_label = Gtk.Label(xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR, hexpand=True)
+        detail_label.set_natural_wrap_mode(Gtk.NaturalWrapMode.NONE)
         detail_label.add_css_class("caption")
         detail_label.add_css_class("dim-label")
         detail_label.set_visible(False)
@@ -1036,7 +1071,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     def on_weather_ready(self, data):
         self.weather_data = data
-        self.weather_table.set_visible(True)
+        self._render_coming_up()
+        self.weather_table.set_visible(not self._compact)
         self._set_status_icon(self.weather_status_icon, "ok")
         self.render_weather()
         return False
@@ -1099,17 +1135,18 @@ class ZaryaWindow(Adw.ApplicationWindow):
         sunset = weather.format_sun_time(d.get("sunset"))
         sun_pieces = []
         if sunrise and sunset:
-            sun_pieces.append(f"☀ Sunrise {sunrise} · Sunset {sunset}")
+            sun_pieces.append(f"☀ Sunrise {sunrise}")
+            sun_pieces.append(f"Sunset {sunset}")
         delta = weather.day_length_delta_minutes(
             d.get("sunrise"), d.get("sunset"), d.get("sunrise_yesterday"), d.get("sunset_yesterday"),
         )
         if delta is not None and round(delta) != 0:
             minutes = abs(round(delta))
             comparison = "more" if delta > 0 else "less"
-            sun_pieces.append(f"{minutes} min {comparison} daylight than yesterday")
+            sun_pieces.append(f"{minutes} min {comparison} daylight")
         moon = weather.moon_phase()
         sun_pieces.append(f"{moon['emoji']} {moon['name']} ({moon['illumination']:.0f}%)")
-        self.weather_sun_label.set_label(" · ".join(sun_pieces))
+        self.weather_sun_label.set_label("\n".join(sun_pieces))
 
         sunrise_hour, sunset_hour = weather.sun_hours(d.get("sunrise"), d.get("sunset"))
         styles.set_sun_hours(sunrise_hour, sunset_hour)
@@ -1619,12 +1656,96 @@ class ZaryaWindow(Adw.ApplicationWindow):
 
     # --- calendar ---
 
+    def set_compact(self, on):
+        """Slim single-column view: current weather, Coming up, and the
+        status cards; hides the hourly strip, events list and the sidebar."""
+        if on == self._compact:
+            return
+        self._compact = on
+        self.config["compact_mode"] = on
+        save_config(self.config)
+        self.sidebar_box.set_visible(not on)
+        self.events_expander.set_visible(not on)
+        self.sun_pill.set_visible(not on)
+        if self.weather_data:
+            self.weather_table.set_visible(not on)
+        if on:
+            if self.coming_card.get_parent() is self.sidebar_box:
+                self.sidebar_box.remove(self.coming_card)
+            self.coming_card.set_margin_start(0)
+            self.coming_card.set_margin_end(0)
+            self.root_box.insert_child_after(self.coming_card, self.weather_expander)
+            if not self.is_maximized():
+                self._pre_compact_size = (self.get_width(), self.get_height())
+                self.set_default_size(400, 640)
+        else:
+            self.root_box.remove(self.coming_card)
+            self.coming_card.set_margin_start(8)
+            self.coming_card.set_margin_end(12)
+            self.sidebar_box.insert_child_after(self.coming_card, self.todo_sidebar)
+            if self._pre_compact_size and not self.is_maximized():
+                self.set_default_size(*self._pre_compact_size)
+            self._pre_compact_size = None
+
+    def _on_coming_up_timer(self):
+        self._render_coming_up()
+        return True
+
+    @staticmethod
+    def _fmt_delta(seconds):
+        minutes = max(1, round(seconds / 60))
+        if minutes < 60:
+            return f"{minutes} min"
+        hours, mins = divmod(minutes, 60)
+        return f"{hours} h {mins} min" if mins else f"{hours} h"
+
+    def _render_coming_up(self):
+        now = datetime.datetime.now().astimezone()
+        events = self._events_today
+        if events is None:
+            text = "Connect Google in Preferences to see your next event." if getattr(self, "_no_google", False) else "Loading events…"
+        else:
+            def aware(dt):
+                return dt if dt.tzinfo else dt.astimezone()
+            timed = [e for e in events if not e["all_day"]]
+            current = [e for e in timed if aware(e["start"]) <= now < aware(e.get("end") or e["start"] + datetime.timedelta(minutes=1))]
+            upcoming = [e for e in timed if aware(e["start"]) > now]
+            lines = []
+            for e in current:
+                end = e.get("end")
+                tail = f" · ends in {self._fmt_delta((aware(end) - now).total_seconds())}" if end else ""
+                lines.append(f"Now: {e['summary']}{tail}")
+            if upcoming:
+                e = upcoming[0]
+                lines.append(f"Next: {e['summary']}\nin {self._fmt_delta((aware(e['start']) - now).total_seconds())} ({e['start'].strftime('%I:%M %p').lstrip('0')})")
+            if not lines:
+                lines.append("Nothing else on the calendar today.")
+            text = "\n".join(lines)
+        self.next_up_label.set_label(text)
+
+        d = self.weather_data
+        if not d or not d.get("precip_prob"):
+            self.rain_soon_label.set_visible(False)
+            return
+        self.rain_soon_label.set_visible(True)
+        probs, hours = d["precip_prob"], d["hours"]
+        fmt = WeatherTable._format_hour
+        if probs[0] >= 50:
+            end = next((i for i, p in enumerate(probs) if p < 30), None)
+            msg = f"Rain likely now ({probs[0]:.0f}%)" + (f", easing around {fmt(hours[end])}" if end else ", staying wet for the next 24 h")
+        else:
+            start = next((i for i, p in enumerate(probs) if p >= 50), None)
+            msg = f"Rain likely from {fmt(hours[start])} ({probs[start]:.0f}%)" if start else "No rain expected for the next 24 h"
+        self.rain_soon_label.set_label("☔ " + msg if "Rain" in msg else "☀ " + msg)
+
     def _on_events_refresh_timer(self):
         self.fetch_events()
         return True
 
     def fetch_events(self):
         refresh_token = keyring.lookup_google_refresh_token()
+        self._no_google = not refresh_token
+        self._render_coming_up()
         if not refresh_token:
             self._set_box_message(self.events_box, "Connect your Google Account in Preferences to see today's events.")
             self._set_status_icon(self.events_status_icon, "neutral")
@@ -1647,6 +1768,8 @@ class ZaryaWindow(Adw.ApplicationWindow):
         return False
 
     def on_events_ready(self, events):
+        self._events_today = events
+        self._render_coming_up()
         self._set_status_icon(self.events_status_icon, "ok")
         if not events:
             self._set_box_message(self.events_box, "No events today.")

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.21.0] "Small Hours" — Coming up, compact mode, even cards
+
+- Added: **Compact mode** — a toggle button at the left of the header bar shrinks Zarya to a slim single column (current weather, Coming up, status cards) and hides the hourly strip, events list and sidebar. Toggle again to restore your previous window size. The choice is remembered.
+
+- Added: a "Coming up" card in the sidebar. It shows what's on now (with time left), the next event with a live countdown ("in 1 h 35 min"), and a rain-soon line from the hourly forecast ("Rain likely from 5 AM (70%)" / "No rain expected for the next 24 h"). Refreshes every 30 seconds.
+
+- Fixed: in the stacked layout the System/Backups/Updates cards were different heights and the tallest one's last line was clipped at the bottom. They now match in height and no longer clip.
+- Changed: the sunrise/sunset/daylight/moon pill in the weather header is now a tidy four-line block instead of a long sentence that wrapped awkwardly in narrow windows.
+
 ## [0.20.3] "Flex Room" — panes resize to fit
 
 - Fixed: at wide window sizes the left edge of the content (weather, Events) was cut off. The split between content and sidebar is now kept within what the content needs and the sidebar's 300px minimum, and the sidebar defaults to a slim width on a fresh install.
