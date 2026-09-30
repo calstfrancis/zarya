@@ -460,8 +460,10 @@ class ZaryaWindow(Adw.ApplicationWindow):
             "folder-symbolic", "Growing This Week", on_refresh=self.fetch_disk_growth,
         )
         self.wide_status_grid = Gtk.Grid(
-            row_spacing=14, column_spacing=14, column_homogeneous=True, row_homogeneous=True,
+            row_spacing=14, column_spacing=14, column_homogeneous=True, row_homogeneous=False,
         )
+        for _c in (self.system_wide_card, self.backups_wide_card, self.updates_wide_card, self.disk_growth_wide_card):
+            _c.set_valign(Gtk.Align.START)
         self.wide_status_grid.attach(self.system_wide_card, 0, 0, 1, 1)
         self.wide_status_grid.attach(self.backups_wide_card, 1, 0, 1, 1)
         self.wide_status_grid.attach(self.updates_wide_card, 0, 1, 1, 1)
@@ -480,7 +482,7 @@ class ZaryaWindow(Adw.ApplicationWindow):
         # copies of that content.
         self.wide_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14, homogeneous=True)
         wide_breakpoint = Adw.Breakpoint.new(
-            Adw.BreakpointCondition.new_length(Adw.BreakpointConditionLengthType.MIN_WIDTH, 1200, Adw.LengthUnit.PX)
+            Adw.BreakpointCondition.new_length(Adw.BreakpointConditionLengthType.MIN_WIDTH, 1500, Adw.LengthUnit.PX)
         )
         wide_breakpoint.connect("apply", self._on_wide_layout)
         wide_breakpoint.connect("unapply", self._on_narrow_layout)
@@ -520,12 +522,14 @@ class ZaryaWindow(Adw.ApplicationWindow):
         main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True)
         main_paned.set_start_child(self.toast_overlay)
         main_paned.set_resize_start_child(True)
-        main_paned.set_shrink_start_child(False)
+        main_paned.set_shrink_start_child(True)
         main_paned.set_end_child(sidebar_box)
         main_paned.set_resize_end_child(False)
         main_paned.set_shrink_end_child(False)
         main_paned.set_position(self.config.get("sidebar_paned_position", 700))
         self._paned_ready = False
+        self._main_paned = main_paned
+        main_paned.connect("notify::max-position", self._clamp_paned)
         GLib.timeout_add(500, self._on_paned_ready)
         main_paned.connect("notify::position", self._on_paned_position_changed)
         self._paned_save_timeout = None
@@ -811,6 +815,13 @@ class ZaryaWindow(Adw.ApplicationWindow):
             icon.set_from_icon_name(None)
 
     # --- sidebar paned ---
+
+    def _clamp_paned(self, paned, _pspec=None):
+        # On small/maximized windows a saved position from a bigger screen
+        # would push the sidebar off-screen; keep it at least 300px wide.
+        limit = paned.get_width() - 300
+        if limit > 300 and paned.get_position() > limit:
+            paned.set_position(limit)
 
     def _on_paned_ready(self):
         # Setting the initial position programmatically also fires

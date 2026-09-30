@@ -1,13 +1,15 @@
-# Zarya v0.20.1 "Full Shelf"
+# Zarya v0.20.2 "Snug Fit"
 
-**Released:** 2026-09-29
+**Released:** 2026-09-30
 
 ## What's new
 
-- **The System card shows every mounted disk.** It used to check only `/` and
-  your home folder, so an extra drive (for example a SATA disk at `/mnt/data`)
-  never appeared. Each real block-device filesystem is now listed, labelled
-  by its mount folder; boot/EFI partitions and removable media are skipped.
+- **Zarya works on smaller screens.** Maximizing on a smaller monitor no
+  longer hides the To-Do/Habits sidebar or cuts off the right-hand cards; a
+  sidebar width saved on a bigger screen can't push it out of view.
+- **No more big vertical gap** between the status-card rows, and the
+  side-by-side layout now waits until the window is wide enough (1500px) to
+  give the cards room.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 

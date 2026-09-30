@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.20.2] "Snug Fit" — small-screen layout
+
+- Fixed: maximizing on a smaller screen no longer hides the To-Do/Habits sidebar or clips the content on the right. The content pane can now shrink, and a sidebar position saved on a larger monitor is clamped so the sidebar always stays visible.
+- Fixed: the side-by-side (wide) layout now starts at 1500px instead of 1200px, so its cards get enough room beside the sidebar, and the status cards no longer stretch to equal height, which left a large vertical gap.
+
 ## [0.20.1] "Full Shelf" — every mounted disk, not just / and home
 
 - Fixed: the System card only ever showed `/` and your home folder, so any extra drive (e.g. a SATA disk mounted at `/mnt/data`) was missing. It now lists every real block-device filesystem mounted on the host, labelled by its mount folder, skipping boot/EFI partitions and collapsing btrfs subvolumes of one device into a single entry.

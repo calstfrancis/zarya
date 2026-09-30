@@ -39,6 +39,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.20.2" date="2026-09-30">
+      <description>
+        <p>
+          "Snug Fit". Zarya now works on smaller screens: maximizing no
+          longer hides the sidebar or clips the content, and the status
+          cards no longer leave a large vertical gap.
+        </p>
+      </description>
+    </release>
     <release version="0.20.1" date="2026-09-29">
       <description>
         <p>
