@@ -39,6 +39,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.21.2" date="2026-10-03">
+      <description>
+        <p>
+          "Quiet Dawn". Opening Zarya no longer asks for a password every
+          morning when the daily root update timer is set up. Without the
+          timer, the automatic daily run still asks as before.
+        </p>
+      </description>
+    </release>
     <release version="0.21.1" date="2026-09-30">
       <description>
         <p>

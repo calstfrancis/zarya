@@ -159,7 +159,10 @@ def _check_unit_already_ran_today(callback):
     still goes through the original pkexec prompt unchanged, since that's a
     deliberate manual action, not the unattended case this exists to fix."""
     system_updates.get_status(
-        lambda status: callback(status["ran_today"], status["succeeded_today"], status["failed_today"])
+        lambda status: callback(
+            status["ran_today"], status["succeeded_today"], status["failed_today"],
+            not status["installed"] and not status.get("query_failed", False),
+        )
     )
 
 
@@ -2046,11 +2049,17 @@ class ZaryaWindow(Adw.ApplicationWindow):
             return
         _check_unit_already_ran_today(self._on_daily_status_checked)
 
-    def _on_daily_status_checked(self, ran_today, succeeded_today, failed_today):
+    def _on_daily_status_checked(self, ran_today, succeeded_today, failed_today, timer_absent=True):
         if ran_today and succeeded_today:
             self.logline("--- system update already completed today (daily timer) — skipping ---")
             self.on_privileged_done(True, 0)
             return
+        if not self._interactive and timer_absent:
+            # No daily timer installed (confirmed — not merely a failed
+            # query): there's no silent route, so the automatic run falls
+            # back to the pkexec prompt, as it did before the timer existed.
+            self._interactive = True
+            self._set_running(True)
         if not self._interactive:
             if failed_today and not self.already_reported_timer_failure_today():
                 # The timer's own retries (Restart= in zarya-system-update.service)
@@ -2266,7 +2275,7 @@ class ZaryaApplication(Adw.Application):
                 self.window.present()
             if self.window.config.get("onboarded"):
                 if not self.window.already_ran_today():
-                    GLib.idle_add(self.window.start_updates)
+                    GLib.idle_add(self.window.start_updates, False)
             else:
                 # Silent first-run setup doesn't make sense — show it
                 # regardless of --background.
@@ -2290,7 +2299,7 @@ class ZaryaApplication(Adw.Application):
         self.window.fetch_events()
         self.window.todo_sidebar.fetch_tasks()
         if not self.window.already_ran_today():
-            GLib.idle_add(self.window.start_updates)
+            GLib.idle_add(self.window.start_updates, False)
 
 
 def main():

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.21.2] "Quiet Dawn" — no more morning password prompt
+
+- Fixed: opening Zarya (including the login autostart) no longer pops a sudo/polkit prompt when the daily root timer is set up. Launch and first-run checks only record the timer's result. If the timer is *not* installed, the automatic daily run still falls back to the password prompt, so both setups work; a failed status query never prompts.
+
 ## [0.21.1] "Steady Shelf" — smarter sidebar
 
 - Changed: "Coming up" now sits at the top of the sidebar, above To-Do.

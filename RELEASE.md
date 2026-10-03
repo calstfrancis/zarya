@@ -1,14 +1,14 @@
-# Zarya v0.21.1 "Steady Shelf"
+# Zarya v0.21.2 "Quiet Dawn"
 
-**Released:** 2026-09-30
+**Released:** 2026-10-03
 
 ## What's new
 
-- **Coming up moves to the top** of the sidebar, above To-Do.
-- **The sidebar sizes itself.** It scales with the window (300-440px) until
-  you drag it; after that your chosen width is kept at any window size
-  without squeezing the content.
-- **Short windows** no longer force the window taller; the sidebar scrolls.
+- **No more morning password prompt.** If you've enabled the daily update
+  timer in Preferences > Updates, opening Zarya (or logging in with
+  autostart) now just records what the timer did instead of asking for
+  your password. Without the timer, the automatic daily run still asks
+  once, as before. "Run Now" always prompts.
 
 See [CHANGELOG.md](CHANGELOG.md) for everything since earlier releases.
 

@@ -63,14 +63,14 @@ def get_status(callback):
             "--property=NextElapseUSecRealtime,LastTriggerUSec,UnitFileState",
         ])
     except GLib.Error:
-        callback(_empty_status())
+        callback(_empty_status(query_failed=True))
         return
 
     def on_timer_done(source, result):
         try:
             _ok, stdout, _stderr = source.communicate_utf8_finish(result)
         except GLib.Error:
-            callback(_empty_status())
+            callback(_empty_status(query_failed=True))
             return
         timer_props = _parse_show(stdout)
         if timer_props.get("UnitFileState") not in ("enabled", "enabled-runtime", "static", "linked"):
@@ -86,14 +86,14 @@ def get_status(callback):
                 "--property=Result,ExecMainExitTimestamp,ActiveState",
             ])
         except GLib.Error:
-            callback(_empty_status())
+            callback(_empty_status(query_failed=True))
             return
 
         def on_service_done(service_source, service_result):
             try:
                 _ok, service_stdout, _stderr = service_source.communicate_utf8_finish(service_result)
             except GLib.Error:
-                callback(_empty_status())
+                callback(_empty_status(query_failed=True))
                 return
             service_props = _parse_show(service_stdout)
             exit_ts = service_props.get("ExecMainExitTimestamp", "")
@@ -122,7 +122,7 @@ def get_status(callback):
     proc.communicate_utf8_async(None, None, on_timer_done)
 
 
-def _empty_status():
+def _empty_status(query_failed=False):
     # Used both for "genuinely not installed" and for "couldn't query it"
     # (flatpak-spawn failing, an unreadable systemctl reply) — a real query
     # failure while it IS actually installed would misreport as "not set
@@ -132,6 +132,7 @@ def _empty_status():
         "installed": False,
         "next_trigger": None, "last_trigger": None, "last_result": None,
         "ran_today": False, "succeeded_today": False, "failed_today": False,
+        "query_failed": query_failed,
     }
 
 
